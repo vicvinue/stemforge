@@ -11,9 +11,13 @@ Modos ordenados **de menor a mayor calidad de separación**:
 |---|---|---|---|---|---|
 | 1 | Básica | **6 Stems · Demucs 6s** | Voz, Batería, Bajo, Guitarra, Piano, Otros, Instrumental | Demucs v4 6s | ≈ 1 min |
 | 2 | Básica | **4 Stems · Rápido** | Voz, Batería, Bajo, Otros, Instrumental | Demucs v4 | < 1 min |
-| 3 | Alta | **4 Stems · Alta calidad** | Voz, Batería, Bajo, Otros, Instrumental | BS-Roformer → Demucs v4 FT sobre el instrumental | ≈ 6 min |
-| 4 | Máxima | **6 Stems · Guitarra y Piano** | Voz, Batería, Bajo, Guitarra, Piano, Otros, Instrumental | BS-Roformer SW (si no se descarga, usa Demucs 6s) | ≈ 3 min |
-| 5 | Máxima | **Instrumental + Voz** | Voz, Instrumental | BS-Roformer Viperx 1297 | ≈ 4–5 min |
+| 3 | Alta | **6 Stems · Guitarra y Piano** | Voz, Batería, Bajo, Guitarra, Piano, Otros, Instrumental | BS-Roformer SW | ≈ 3 min |
+| 4 | Alta | **4 Stems · Alta calidad** | Voz, Batería, Bajo, Otros, Instrumental | MelBand Roformer Kim → BS-Roformer SW sobre el instrumental | ≈ 5 min |
+| 5 | Máxima | **Instrumental + Voz** | Voz, Instrumental | Voz: MelBand Roformer Kim · Instrumental: BS-Roformer Gabox | ≈ 8 min |
+| 6 | Máxima | **Ultra · Ensemble** | Voz, Batería, Bajo, Guitarra, Piano, Otros, Instrumental | Promedio de 3 modelos de voz y 4 de instrumental (Kim, unwa Big Beta 4, Viperx 1297, Gabox) → BS-Roformer SW | ≈ 20 min |
+
+Si un modelo no se puede descargar, cada paso usa una alternativa (p. ej. Viperx 1297 en lugar de Kim,
+Demucs en lugar de SW) y el trabajo lo avisa. En Ultra, un modelo que falle se omite del promedio.
 
 \* M1 Pro, calidad *Equilibrada*. La valoración se basa en los SDR publicados (lista de modelos de
 audio-separator, README de Demucs y tabla de MVSEP). Entre los modos «Máxima» la comparación es
@@ -24,7 +28,7 @@ opciones → pulsa **«Agregar a la cola y separar»**. Recién ahí se envían 
 
 Opcional en todos los modos con batería: **dividir la batería** en Bombo, Caja, Toms, Hi-Hat, Ride y Crash (MDX23C DrumSep).
 
-- **Calidad**: *Equilibrada* (≈2× más rápida: overlap 2 en Roformer, 1 shift en Demucs) o *Máxima* (ajustes originales de cada modelo).
+- **Calidad**: *Equilibrada* (solapamiento ≤ 2 en Roformer, 1 shift en Demucs; nunca más lento que el ajuste del modelo) o *Máxima* (solapamiento ≥ 4 y 2 shifts: ≈ 2× más lenta).
 - **Formatos**: WAV 24-bit, FLAC 24-bit, MP3 (320k por defecto). Internamente todo se procesa en float32 44,1 kHz.
 - **Mezclador** integrado: escucha los stems sincronizados, con mute/solo/volumen y forma de onda.
 - **Qué extraer**: «Todo» o solo los stems que elijas (p. ej. solo Voz y Bajo, o solo Bombo y Caja). Solo se ejecutan los modelos necesarios: pedir solo la Voz en «4 Stems · Alta calidad» no ejecuta Demucs.
@@ -58,9 +62,9 @@ enlazan automáticamente para no descargarlos otra vez.
 
 ## Rendimiento orientativo (M1 Pro, 16 GB, calidad Equilibrada)
 
-Por cada minuto de audio: BS-Roformer ≈ 70 s · Demucs FT ≈ 20 s · BS-Roformer SW ≈ 40 s · Demucs ≈ 11 s.
-Una canción de 4 min en *4 Stems · Alta calidad* tarda ≈ 6 min; en *4 Stems · Rápido* < 1 min.
-*Máxima* duplica aproximadamente el tiempo de BS-Roformer y Demucs FT.
+Por cada minuto de audio: MelBand Kim ≈ 26 s · BS-Roformer SW ≈ 45 s · Big Beta 4 ≈ 65 s ·
+Viperx 1297 ≈ 70 s · Gabox ≈ 70 s · Demucs FT ≈ 20 s · Demucs ≈ 11 s.
+*Máxima* aproximadamente duplica los tiempos de los Roformer.
 
 ## Arquitectura
 
@@ -89,5 +93,6 @@ de `audio-separator -l` sirve (MDX-Net, VR, Demucs, MDX23C, BS/MelBand-Roformer)
 - [python-audio-separator](https://github.com/nomadkaraoke/python-audio-separator) (MIT) — motor de inferencia de modelos UVR.
 - [Demucs](https://github.com/facebookresearch/demucs) (MIT) — Meta AI.
 - [Ultimate Vocal Remover](https://github.com/Anjok07/ultimatevocalremovergui) (MIT) — inspiración y modelos MDX/VR.
-- Pesos de modelos: BS-Roformer (viperx), BS-Roformer SW (jarredou), MDX23C DrumSep (aufr33 & jarredou).
+- Pesos de modelos: BS-Roformer (viperx), MelBand Roformer (Kimberley Jensen), MelBand Big Beta 4 (unwa),
+  BS-Roformer (Gabox), BS-Roformer SW (jarredou), MDX23C DrumSep (aufr33 & jarredou).
   Cada modelo tiene su propia licencia; revísalas antes de cualquier uso que no sea personal.
