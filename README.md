@@ -61,10 +61,10 @@ dependencias y un ffmpeg estático: no necesita esta carpeta, Homebrew ni un Pyt
 ## Instalación para desarrollo
 
 ```bash
-./setup.sh          # instala ffmpeg/uv si faltan, crea .venv (Python 3.12) y StemForge.app
+./setup.sh          # instala ffmpeg/uv si faltan y crea .venv (Python 3.12)
 ```
 
-Luego ejecuta `./run.sh` (`./run.sh --browser` para usar el navegador). El `StemForge.app` de la raíz es solo un lanzador de desarrollo que depende de `.venv`; para uso normal usa la app autónoma.
+Luego ejecuta `./run.sh` (`./run.sh --browser` para usar el navegador).
 
 Los modelos se descargan solos la primera vez que se usan (≈ 0,5–0,7 GB cada Roformer) en
 `~/Library/Application Support/StemForge/models`. Si tienes UVR instalado, sus pesos de Demucs se
