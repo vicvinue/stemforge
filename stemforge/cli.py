@@ -7,7 +7,7 @@ from pathlib import Path
 
 from . import config
 from .engine import Engine, Progress, SeparationRequest
-from .presets import MODES
+from .presets import MODES, modes_by_quality, tier_of
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -27,8 +27,10 @@ def main(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
 
     if args.list_modes:
-        for m in MODES.values():
-            print(f"{m.key:15} {m.name}\n{'':15} {m.description}")
+        print("Modos de menor a mayor calidad de separación:\n")
+        for m in modes_by_quality():
+            print(f"{m.rank}. [{tier_of(m.rank)[1]:7}] {m.key:14} {m.name}  ({m.speed})\n"
+                  f"{'':28}{m.quality_note}")
         return 0
     if args.info:
         print(Engine.device_info())

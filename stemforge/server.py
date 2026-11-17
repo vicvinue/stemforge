@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from . import config
 from .engine import Engine, SeparationRequest
 from .jobs import JobManager
-from .presets import public_modes, MODES
+from .presets import public_modes, public_tiers, MODES
 
 WEB_DIR = Path(__file__).parent / "web"
 TOKEN = secrets.token_urlsafe(24)
@@ -75,7 +75,7 @@ class SettingsIn(BaseModel):
 
 @app.get("/api/info", dependencies=[Depends(guard)])
 def info():
-    return {"modes": public_modes(), "settings": settings.__dict__, "device": Engine.device_info(),
+    return {"modes": public_modes(), "tiers": public_tiers(), "settings": settings.__dict__, "device": Engine.device_info(),
             "formats": list(config.OUTPUT_FORMATS)}
 
 

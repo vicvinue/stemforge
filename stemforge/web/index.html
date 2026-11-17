@@ -31,6 +31,32 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:1.2px;color:var(--mute
 #drop strong{display:block;font-size:15px;margin:8px 0 2px}
 #drop span{color:var(--muted);font-size:12.5px}
 .modes{display:grid;gap:8px}
+.tier-head{display:flex;align-items:center;gap:8px;margin:6px 0 0;font-size:11.5px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600}
+.tier-head:first-child{margin-top:0}
+.tier-head:after{content:"";flex:1;height:1px;background:var(--line)}
+.tier-head .tag{padding:1px 8px;border-radius:99px;font-size:10.5px;letter-spacing:.6px}
+.tier-basica .tag{background:#2a2e38;color:#c9cdd8}
+.tier-alta .tag{background:rgba(79,179,255,.15);color:#7cc4ff}
+.tier-maxima .tag{background:rgba(34,211,166,.15);color:var(--accent2)}
+.mode-top{display:flex;align-items:center;gap:10px}
+.mode-top b{flex:1}
+.meter{display:inline-flex;gap:2px;align-items:flex-end}
+.meter i{width:4px;border-radius:1px;background:#343846}
+.meter i:nth-child(1){height:6px}.meter i:nth-child(2){height:8px}.meter i:nth-child(3){height:10px}.meter i:nth-child(4){height:12px}.meter i:nth-child(5){height:14px}
+.meter i.on{background:var(--accent2)}
+.mode .note{display:none;color:#aeb3c2;font-size:11.8px;margin-top:5px}
+.mode.sel .note{display:block}
+.mode .speed{color:var(--muted);font-size:11px;white-space:nowrap}
+.staged{margin-top:10px;display:grid;gap:6px}
+.staged-item{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:6px 8px 6px 11px;font-size:13px}
+.staged-item span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.staged-item small{color:var(--muted);font-size:11.5px}
+.staged-item button{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:16px;line-height:1;padding:2px 6px;border-radius:6px}
+.staged-item button:hover{color:var(--err);background:#2a2e38}
+.submit-bar{position:sticky;bottom:0;margin:20px -18px -18px;padding:14px 18px;background:linear-gradient(180deg,rgba(22,24,30,.85),var(--panel) 35%);border-top:1px solid var(--line);border-radius:0 0 var(--radius) var(--radius)}
+.submit-bar .btn{width:100%;padding:11px;font-size:14.5px}
+.submit-bar .btn:disabled{opacity:.4;cursor:not-allowed;filter:none}
+.submit-bar .summary{color:var(--muted);font-size:12px;margin-top:7px;text-align:center}
 .mode{display:block;border:1px solid var(--line);border-radius:12px;padding:9px 12px;cursor:pointer;background:var(--panel2);transition:.12s}
 .mode:hover{border-color:#3f4452}
 .mode input{display:none}
@@ -127,10 +153,11 @@ input[type=range]{accent-color:var(--accent);cursor:pointer}
         <span>o haz clic para elegir · MP3, WAV, FLAC, M4A, AIFF, OGG…</span>
         <input type="file" id="file" multiple accept="audio/*,.mp3,.wav,.flac,.m4a,.aac,.ogg,.aiff,.aif,.opus,.wma,.mp4" hidden>
       </div>
+      <div class="staged" id="staged"></div>
     </div>
 
     <div class="section">
-      <h2>2 · Tipo de separación</h2>
+      <h2>2 · Tipo de separación <span style="text-transform:none;letter-spacing:0;font-weight:400">· de menor a mayor calidad</span></h2>
       <div class="modes" id="modes"></div>
     </div>
 
@@ -161,6 +188,11 @@ input[type=range]{accent-color:var(--accent);cursor:pointer}
         </div>
       </div>
     </div>
+
+    <div class="submit-bar">
+      <button class="btn primary" id="submitBtn" disabled>Agregar a la cola y separar</button>
+      <div class="summary" id="summary">Arrastra una o más canciones para empezar.</div>
+    </div>
   </section>
 
   <section>
@@ -169,7 +201,7 @@ input[type=range]{accent-color:var(--accent);cursor:pointer}
         <h2 style="margin:0">Cola de trabajos</h2>
         <button class="btn small" id="clearDone">Limpiar terminados</button>
       </div>
-      <div id="jobs" style="margin-top:12px"><div class="empty">Arrastra una canción para empezar.</div></div>
+      <div id="jobs" style="margin-top:12px"><div class="empty">Aún no hay trabajos. Prepara canciones a la izquierda y pulsa «Agregar a la cola y separar».</div></div>
     </div>
 
     <div class="card" id="mixer">
@@ -196,7 +228,7 @@ const STEM_COLORS = k => getComputedStyle(document.documentElement).getPropertyV
 const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>';
 const ICON_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>';
 
-let state = { modes: [], settings: {}, mode: "stems4", quality: "balanced", format: "wav", drumsep: false };
+let state = { modes: [], tiers: [], staged: [], settings: {}, mode: "stems4", quality: "balanced", format: "wav", drumsep: false };
 let jobs = [];
 
 async function api(path, opts = {}) {
@@ -216,7 +248,7 @@ function fmtTime(s) { s = Math.max(0, Math.floor(s)); return Math.floor(s / 60) 
 // ------------------------------------------------------------------ ajustes
 async function init() {
   const info = await api("/api/info");
-  state.modes = info.modes; state.settings = info.settings;
+  state.modes = info.modes; state.tiers = info.tiers; state.settings = info.settings;
   state.mode = info.settings.default_mode; state.quality = info.settings.quality;
   state.format = info.settings.output_format; state.drumsep = info.settings.drumsep;
   const d = info.device;
@@ -224,18 +256,25 @@ async function init() {
     `<span class="badge ${d.machine === "arm64" ? "ok" : ""}">${d.machine === "arm64" ? "Apple Silicon" : esc(d.machine)}</span>` +
     `<span class="badge ${d.mps ? "ok" : ""}">GPU Metal (MPS) ${d.mps ? "✓" : "✗"}</span>` +
     `<span class="badge ${d.coreml ? "ok" : ""}">CoreML ${d.coreml ? "✓" : "✗"}</span>`;
-  renderModes(); renderOptions(); $("#outdir").textContent = info.settings.output_dir; $("#outdir").title = info.settings.output_dir;
+  renderModes(); renderOptions(); renderStaged(); $("#outdir").textContent = info.settings.output_dir; $("#outdir").title = info.settings.output_dir;
   await refreshJobs();
 }
 function renderModes() {
-  $("#modes").innerHTML = state.modes.map(m => `
-    <label class="mode ${m.key === state.mode ? "sel" : ""}">
-      <input type="radio" name="mode" value="${m.key}" ${m.key === state.mode ? "checked" : ""}>
-      <b>${esc(m.name)}</b><small>${esc(m.description)}</small>
-      <div class="chips">${m.outputs.map(o => `<span class="chip">${esc(o)}</span>`).join("")}</div>
-    </label>`).join("");
+  const meter = rank => `<span class="meter" title="Calidad ${rank}/5">${[1, 2, 3, 4, 5].map(i => `<i class="${i <= rank ? "on" : ""}"></i>`).join("")}</span>`;
+  $("#modes").innerHTML = state.tiers.map(t => {
+    const modes = state.modes.filter(m => m.tier === t.key);
+    if (!modes.length) return "";
+    return `<div class="tier-head tier-${t.key}"><span class="tag">${esc(t.label)}</span></div>` + modes.map(m => `
+      <label class="mode ${m.key === state.mode ? "sel" : ""}">
+        <input type="radio" name="mode" value="${m.key}" ${m.key === state.mode ? "checked" : ""}>
+        <div class="mode-top"><b>${esc(m.name)}</b><span class="speed">${esc(m.speed)}</span>${meter(m.rank)}</div>
+        <small>${esc(m.description)}</small>
+        <div class="note">${esc(m.quality_note)}</div>
+        <div class="chips">${m.outputs.map(o => `<span class="chip">${esc(o)}</span>`).join("")}</div>
+      </label>`).join("");
+  }).join("");
   document.querySelectorAll("input[name=mode]").forEach(r => r.onchange = () => {
-    state.mode = r.value; renderModes(); renderOptions(); saveSettings({ default_mode: state.mode });
+    state.mode = r.value; renderModes(); renderOptions(); renderStaged(); saveSettings({ default_mode: state.mode });
   });
 }
 function renderOptions() {
@@ -245,30 +284,62 @@ function renderOptions() {
     document.querySelectorAll(id + " button").forEach(b => b.classList.toggle("on", b.dataset.v === state[key]));
 }
 async function saveSettings(patch) { try { state.settings = await api("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) }) } catch (e) { toast(e.message) } }
-$("#drumsep").onchange = e => { state.drumsep = e.target.checked; saveSettings({ drumsep: state.drumsep }); };
-$("#quality").onclick = e => { const v = e.target.dataset?.v; if (!v) return; state.quality = v; renderOptions(); saveSettings({ quality: v }); };
-$("#format").onclick = e => { const v = e.target.dataset?.v; if (!v) return; state.format = v; renderOptions(); saveSettings({ output_format: v }); };
+$("#drumsep").onchange = e => { state.drumsep = e.target.checked; renderStaged(); saveSettings({ drumsep: state.drumsep }); };
+$("#quality").onclick = e => { const v = e.target.dataset?.v; if (!v) return; state.quality = v; renderOptions(); renderStaged(); saveSettings({ quality: v }); };
+$("#format").onclick = e => { const v = e.target.dataset?.v; if (!v) return; state.format = v; renderOptions(); renderStaged(); saveSettings({ output_format: v }); };
 $("#chooseDir").onclick = async () => { const r = await api("/api/choose-folder", { method: "POST" }); if (r.path) { $("#outdir").textContent = r.path; $("#outdir").title = r.path; toast("Carpeta actualizada"); } };
 $("#openDir").onclick = () => api("/api/open-output", { method: "POST" });
 
 // ------------------------------------------------------------------ subida
 const drop = $("#drop"), fileIn = $("#file");
 drop.onclick = () => fileIn.click();
-fileIn.onchange = () => { upload([...fileIn.files]); fileIn.value = ""; };
+fileIn.onchange = () => { stage([...fileIn.files]); fileIn.value = ""; };
 ["dragenter", "dragover"].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
 ["dragleave", "drop"].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); if (ev === "drop" || e.target === document.documentElement) drop.classList.remove("over"); }));
-document.addEventListener("drop", e => { const files = [...(e.dataTransfer?.files || [])]; if (files.length) upload(files); });
+document.addEventListener("drop", e => { const files = [...(e.dataTransfer?.files || [])]; if (files.length) stage(files); });
 
-async function upload(files) {
+const AUDIO_RE = /\.(mp3|wav|flac|m4a|aac|ogg|aiff?|opus|wma|mp4)$/i;
+function fmtSize(b) { return b > 1048576 ? (b / 1048576).toFixed(1) + " MB" : Math.round(b / 1024) + " KB"; }
+
+// Las canciones soltadas quedan "preparadas": se configuran y se envían con el botón.
+function stage(files) {
+  const audio = files.filter(f => AUDIO_RE.test(f.name) || f.type.startsWith("audio/"));
+  if (audio.length < files.length) toast(`${files.length - audio.length} archivo(s) ignorado(s): no son audio`);
+  for (const f of audio)
+    if (!state.staged.some(s => s.name === f.name && s.size === f.size && s.lastModified === f.lastModified)) state.staged.push(f);
+  renderStaged();
+}
+function renderStaged() {
+  $("#staged").innerHTML = state.staged.map((f, i) => `
+    <div class="staged-item"><span title="${esc(f.name)}">${esc(f.name)}</span><small>${fmtSize(f.size)}</small>
+    <button data-i="${i}" title="Quitar">×</button></div>`).join("");
+  const n = state.staged.length, btn = $("#submitBtn"), mode = state.modes.find(m => m.key === state.mode);
+  btn.disabled = !n;
+  btn.textContent = n ? `Agregar a la cola y separar (${n})` : "Agregar a la cola y separar";
+  const drum = $("#drumsep").checked && !$("#drumsep").disabled ? " + batería dividida" : "";
+  $("#summary").textContent = n && mode
+    ? `${mode.name}${drum} · ${state.quality === "max" ? "Máxima" : "Equilibrada"} · ${({ wav: "WAV 24", flac: "FLAC", mp3: "MP3" })[state.format]}`
+    : "Arrastra una o más canciones para empezar.";
+}
+$("#staged").onclick = e => { const b = e.target.closest("button[data-i]"); if (!b) return; state.staged.splice(+b.dataset.i, 1); renderStaged(); };
+
+async function submitStaged() {
+  const files = state.staged.slice();
   if (!files.length) return;
+  const btn = $("#submitBtn"); btn.disabled = true; btn.textContent = "Enviando…";
   const fd = new FormData();
   files.forEach(f => fd.append("files", f, f.name));
   fd.append("mode", state.mode); fd.append("quality", state.quality);
-  fd.append("output_format", state.format); fd.append("drumsep", $("#drumsep").checked ? "true" : "false");
-  toast(`Subiendo ${files.length} archivo(s)…`);
-  try { const created = await api("/api/jobs", { method: "POST", body: fd }); toast(`${created.length} canción(es) en cola`); refreshJobs(); }
-  catch (e) { toast("Error: " + e.message); }
+  fd.append("output_format", state.format); fd.append("drumsep", $("#drumsep").checked && !$("#drumsep").disabled ? "true" : "false");
+  try {
+    const created = await api("/api/jobs", { method: "POST", body: fd });
+    state.staged = state.staged.filter(f => !files.includes(f));
+    toast(`${created.length} canción(es) en cola · comenzando`);
+    refreshJobs();
+  } catch (e) { toast("Error: " + e.message); }
+  renderStaged();
 }
+$("#submitBtn").onclick = submitStaged;
 
 // ------------------------------------------------------------------ cola
 let pollTimer = null;
@@ -282,7 +353,7 @@ async function refreshJobs() {
 const STATUS_TXT = { queued: "En cola", running: "Procesando", done: "Listo", error: "Error", cancelled: "Cancelado" };
 function renderJobs() {
   const el = $("#jobs");
-  if (!jobs.length) { el.innerHTML = '<div class="empty">Arrastra una canción para empezar.</div>'; return; }
+  if (!jobs.length) { el.innerHTML = '<div class="empty">Aún no hay trabajos. Prepara canciones a la izquierda y pulsa «Agregar a la cola y separar».</div>'; return; }
   const openDetails = new Set([...el.querySelectorAll("details[open]")].map(d => d.dataset.id));
   el.innerHTML = jobs.slice().reverse().map(j => {
     const pct = Math.round(j.progress * 100);

@@ -5,13 +5,22 @@ Usa la GPU del Mac (PyTorch **MPS / Metal**) y **CoreML** para los modelos ONNX.
 
 ## Qué hace
 
-| Modo | Salida | Modelos |
-|---|---|---|
-| **Instrumental + Voz** | Voz, Instrumental | BS-Roformer Viperx 1297 |
-| **4 Stems · Alta calidad** | Voz, Batería, Bajo, Otros, Instrumental | BS-Roformer → Demucs v4 *fine-tuned* sobre el instrumental |
-| **6 Stems · Guitarra y Piano** | Voz, Batería, Bajo, Guitarra, Piano, Otros, Instrumental | BS-Roformer SW (si no se descarga, usa Demucs 6s) |
-| **6 Stems · Demucs 6s** | igual que el anterior | Demucs v4 6s (más ligero) |
-| **4 Stems · Rápido** | Voz, Batería, Bajo, Otros, Instrumental | Demucs v4 (una pasada) |
+Modos ordenados **de menor a mayor calidad de separación**:
+
+| # | Categoría | Modo | Salida | Modelos | Tiempo (canción de 4 min)* |
+|---|---|---|---|---|---|
+| 1 | Básica | **6 Stems · Demucs 6s** | Voz, Batería, Bajo, Guitarra, Piano, Otros, Instrumental | Demucs v4 6s | ≈ 1 min |
+| 2 | Básica | **4 Stems · Rápido** | Voz, Batería, Bajo, Otros, Instrumental | Demucs v4 | < 1 min |
+| 3 | Alta | **4 Stems · Alta calidad** | Voz, Batería, Bajo, Otros, Instrumental | BS-Roformer → Demucs v4 FT sobre el instrumental | ≈ 6 min |
+| 4 | Máxima | **6 Stems · Guitarra y Piano** | Voz, Batería, Bajo, Guitarra, Piano, Otros, Instrumental | BS-Roformer SW (si no se descarga, usa Demucs 6s) | ≈ 3 min |
+| 5 | Máxima | **Instrumental + Voz** | Voz, Instrumental | BS-Roformer Viperx 1297 | ≈ 4–5 min |
+
+\* M1 Pro, calidad *Equilibrada*. La valoración se basa en los SDR publicados (lista de modelos de
+audio-separator, README de Demucs y tabla de MVSEP). Entre los modos «Máxima» la comparación es
+aproximada, porque los SDR de 2 pistas y de 6 pistas no son directamente comparables.
+
+**Flujo:** arrastra una o varias canciones → quedan *preparadas* (puedes quitarlas) → eliges modo y
+opciones → pulsa **«Agregar a la cola y separar»**. Recién ahí se envían y empieza la conversión.
 
 Opcional en todos los modos con batería: **dividir la batería** en Bombo, Caja, Toms, Hi-Hat, Ride y Crash (MDX23C DrumSep).
 

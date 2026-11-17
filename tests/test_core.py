@@ -89,3 +89,15 @@ def test_quality_params():
     assert engine.quality_params("max")["mdxc_params"]["overlap"] is None
     assert engine.quality_params("balanced")["mdxc_params"]["overlap"] == 2
     assert engine.quality_params("balanced")["demucs_params"]["shifts"] == 1
+
+
+def test_modes_ranked_low_to_high_and_tiered():
+    ordered = presets.modes_by_quality()
+    ranks = [m.rank for m in ordered]
+    assert ranks == sorted(ranks) and len(set(ranks)) == len(ranks) and ranks[0] >= 1
+    public = presets.public_modes()
+    assert [m["key"] for m in public] == [m.key for m in ordered]
+    tier_keys = [t["key"] for t in presets.public_tiers()]
+    seen = [tier_keys.index(m["tier"]) for m in public]
+    assert seen == sorted(seen), "las categorías deben ir de menor a mayor"
+    assert all(m["quality_note"] and m["speed"] for m in public)

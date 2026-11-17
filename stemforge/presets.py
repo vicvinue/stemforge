@@ -69,6 +69,24 @@ class Mode:
     outputs: tuple[str, ...]                    # stems finales que se exportan
     derived: dict[str, tuple[str, ...]] = field(default_factory=dict)  # stem = suma de otros
     fallback: str | None = None                 # modo alternativo si falla la descarga del modelo
+    rank: int = 0                               # calidad de separación: 1 = menor ... 5 = mayor
+    quality_note: str = ""                      # de dónde sale la valoración
+    speed: str = ""                             # tiempo orientativo (M1 Pro, calidad Equilibrada)
+
+
+# Categorías de calidad (de menor a mayor)
+TIERS: tuple[tuple[str, str, tuple[int, ...]], ...] = (
+    ("basica", "Básica", (1, 2)),
+    ("alta", "Alta", (3,)),
+    ("maxima", "Máxima", (4, 5)),
+)
+
+
+def tier_of(rank: int) -> tuple[str, str]:
+    for key, label, ranks in TIERS:
+        if rank in ranks:
+            return key, label
+    return "basica", "Básica"
 
 
 MODES: dict[str, Mode] = {}
@@ -86,6 +104,9 @@ _register(Mode(
     steps=(Step(ROFORMER_VOCALS, "mix", {"vocals": "vocals", "instrumental": "instrumental"},
                 "Separando voz e instrumental (BS-Roformer)"),),
     outputs=("vocals", "instrumental"),
+    rank=5,
+    quality_note="Modelo especializado de 2 pistas: SDR voz 11,8 dB · instrumental 16,5 dB.",
+    speed="≈ 4–5 min por canción de 4 min",
 ))
 
 _register(Mode(
@@ -100,6 +121,9 @@ _register(Mode(
              "Separando batería, bajo y otros (Demucs FT)"),
     ),
     outputs=("vocals", "drums", "bass", "other", "instrumental"),
+    rank=3,
+    quality_note="Voz con BS-Roformer (SDR 11,8 dB); batería/bajo con Demucs FT (≈ 9,2 dB medio en MUSDB).",
+    speed="≈ 6 min por canción de 4 min",
 ))
 
 _register(Mode(
@@ -113,6 +137,9 @@ _register(Mode(
     outputs=("vocals", "drums", "bass", "guitar", "piano", "other", "instrumental"),
     derived={"instrumental": ("drums", "bass", "guitar", "piano", "other")},
     fallback="stems6_demucs",
+    rank=4,
+    quality_note="BS-Roformer SW: SDR medio ≈ 13,7 dB según la tabla de MVSEP; el mejor modelo abierto de 6 stems.",
+    speed="≈ 3 min por canción de 4 min",
 ))
 
 _register(Mode(
@@ -125,6 +152,9 @@ _register(Mode(
                 "Separando 6 stems (Demucs 6s)"),),
     outputs=("vocals", "drums", "bass", "guitar", "piano", "other", "instrumental"),
     derived={"instrumental": ("drums", "bass", "guitar", "piano", "other")},
+    rank=1,
+    quality_note="Demucs 6s: SDR voz 9,6 dB; guitarra y piano con fugas y artefactos notorios.",
+    speed="≈ 1 min por canción de 4 min",
 ))
 
 _register(Mode(
@@ -136,6 +166,9 @@ _register(Mode(
                 "Separando 4 stems (Demucs v4)"),),
     outputs=("vocals", "drums", "bass", "other", "instrumental"),
     derived={"instrumental": ("drums", "bass", "other")},
+    rank=2,
+    quality_note="Demucs v4 (htdemucs): SDR voz 9,9 dB · ≈ 9,0 dB medio en MUSDB.",
+    speed="< 1 min por canción de 4 min",
 ))
 
 DRUMSEP_STEP = Step(
@@ -165,10 +198,22 @@ def normalize_stem_name(raw: str) -> str:
     return STEM_ALIASES.get(key, key)
 
 
+def modes_by_quality() -> list[Mode]:
+    """Modos ordenados de menor a mayor calidad de separación."""
+    return sorted(MODES.values(), key=lambda m: m.rank)
+
+
 def public_modes() -> list[dict]:
-    return [
-        {"key": m.key, "name": m.name, "description": m.description,
-         "outputs": [STEM_LABELS[o] for o in m.outputs],
-         "has_drums": "drums" in m.outputs}
-        for m in MODES.values()
-    ]
+    out = []
+    for m in modes_by_quality():
+        tier_key, tier_label = tier_of(m.rank)
+        out.append({"key": m.key, "name": m.name, "description": m.description,
+                    "outputs": [STEM_LABELS[o] for o in m.outputs],
+                    "has_drums": "drums" in m.outputs,
+                    "rank": m.rank, "tier": tier_key, "tier_label": tier_label,
+                    "quality_note": m.quality_note, "speed": m.speed})
+    return out
+
+
+def public_tiers() -> list[dict]:
+    return [{"key": k, "label": label} for k, label, _ in TIERS]
