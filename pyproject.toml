@@ -1,0 +1,30 @@
+[project]
+name = "stemforge"
+version = "0.1.0"
+description = "Separador de stems para macOS Apple Silicon (inspirado en UVR)"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+  "audio-separator[cpu]>=0.48",
+  "audioread>=3.0",
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "python-multipart>=0.0.9",
+  "pywebview>=5.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "httpx2"]
+
+[project.scripts]
+stemforge = "stemforge.cli:main"
+stemforge-app = "stemforge.app:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["stemforge"]
+
+[tool.setuptools.package-data]
+stemforge = ["web/*"]

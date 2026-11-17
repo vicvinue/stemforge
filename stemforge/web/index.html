@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StemForge</title>
+<style>
+:root{
+  --bg:#0e0f13; --panel:#16181e; --panel2:#1d2028; --line:#2a2e38; --text:#e8eaf0; --muted:#8a90a0;
+  --accent:#7c5cff; --accent2:#22d3a6; --warn:#f5a524; --err:#f04d5d; --radius:14px;
+  --vocals:#ff6b9a; --instrumental:#7c5cff; --drums:#f5a524; --bass:#22d3a6; --guitar:#ff8a3d;
+  --piano:#4fb3ff; --other:#a98bff; --kick:#f5c542; --snare:#ffb44a; --toms:#e8913a; --hihat:#d9e36b;
+  --ride:#9be36b; --crash:#e3d16b;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+header{display:flex;align-items:center;gap:14px;padding:16px 24px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(14,15,19,.92);backdrop-filter:blur(10px);z-index:5}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:.2px}
+.logo svg{width:28px;height:28px}
+.badges{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.badge{font-size:12px;padding:4px 10px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);color:var(--muted)}
+.badge.ok{color:var(--accent2);border-color:rgba(34,211,166,.35)}
+main{display:grid;grid-template-columns:minmax(330px,420px) 1fr;gap:20px;padding:20px 24px;max-width:1400px;margin:0 auto}
+@media (max-width:900px){main{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin:0 0 12px;font-weight:600}
+.section+.section{margin-top:20px}
+#drop{border:1.5px dashed #3a3f4d;border-radius:var(--radius);padding:20px 16px;text-align:center;cursor:pointer;transition:.15s;background:var(--panel2)}
+#drop:hover,#drop.over{border-color:var(--accent);background:rgba(124,92,255,.08)}
+#drop strong{display:block;font-size:15px;margin:8px 0 2px}
+#drop span{color:var(--muted);font-size:12.5px}
+.modes{display:grid;gap:8px}
+.mode{display:block;border:1px solid var(--line);border-radius:12px;padding:9px 12px;cursor:pointer;background:var(--panel2);transition:.12s}
+.mode:hover{border-color:#3f4452}
+.mode input{display:none}
+.mode.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:rgba(124,92,255,.07)}
+.mode b{display:block;font-size:14px}
+.mode small{color:var(--muted);display:none;margin-top:2px;font-size:12.3px}
+.mode.sel small{display:block}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+.chip{font-size:11px;padding:2px 8px;border-radius:999px;background:#262a34;color:#c9cdd8}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0}
+.row label{color:var(--muted)}
+.seg{display:inline-flex;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:3px}
+.seg button{border:0;background:transparent;padding:5px 11px;border-radius:7px;cursor:pointer;color:var(--muted)}
+.seg button.on{background:#2d3140;color:var(--text)}
+.switch{position:relative;width:40px;height:23px;flex:none}
+.switch input{opacity:0;width:0;height:0}
+.switch span{position:absolute;inset:0;background:#2d3140;border-radius:99px;transition:.15s;cursor:pointer}
+.switch span:before{content:"";position:absolute;width:17px;height:17px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.15s}
+.switch input:checked+span{background:var(--accent)}
+.switch input:checked+span:before{transform:translateX(17px)}
+.switch input:disabled+span{opacity:.35;cursor:not-allowed}
+.folder{display:flex;gap:8px;align-items:center}
+.folder code{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:var(--panel2);border:1px solid var(--line);padding:7px 10px;border-radius:9px;font:12px ui-monospace,Menlo,monospace;color:#c9cdd8;direction:rtl;text-align:left}
+.btn{border:1px solid var(--line);background:var(--panel2);color:var(--text);text-decoration:none;padding:7px 12px;border-radius:9px;cursor:pointer;white-space:nowrap;transition:.12s}
+.btn:hover{border-color:#454a5a;background:#232733}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.btn.primary:hover{filter:brightness(1.1)}
+.btn.small{padding:4px 9px;font-size:12.5px}
+.btn.danger:hover{border-color:var(--err);color:var(--err)}
+.empty{color:var(--muted);text-align:center;padding:40px 10px}
+.job{border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--panel2)}
+.job+.job{margin-top:10px}
+.job-top{display:flex;align-items:center;gap:10px}
+.job-title{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.job-meta{color:var(--muted);font-size:12px;margin-top:2px}
+.status{font-size:11.5px;padding:2px 8px;border-radius:99px;background:#262a34;color:var(--muted)}
+.status.running{color:#fff;background:var(--accent)}
+.status.done{color:#06281f;background:var(--accent2)}
+.status.error{color:#fff;background:var(--err)}
+.bar{height:6px;background:#262a34;border-radius:99px;overflow:hidden;margin:10px 0 6px}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:99px;transition:width .4s}
+.bar.dl i{background:repeating-linear-gradient(45deg,var(--warn) 0 8px,#d28a10 8px 16px)}
+.step{font-size:12.5px;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+.actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.stem-chip{display:inline-flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+details.log{margin-top:8px}
+details.log summary{cursor:pointer;color:var(--muted);font-size:12px}
+details.log pre{white-space:pre-wrap;font:11.5px ui-monospace,Menlo,monospace;color:#aeb3c2;background:#111318;border-radius:8px;padding:8px;max-height:180px;overflow:auto;margin:6px 0 0}
+.warn{color:var(--warn);font-size:12.5px;margin-top:6px}
+.err{color:var(--err);font-size:12.5px;margin-top:6px}
+/* Mezclador */
+#mixer{margin-top:20px;display:none}
+#mixer.open{display:block}
+.mix-head{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.mix-head .title{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.transport{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.play{width:42px;height:42px;border-radius:50%;border:0;background:var(--accent);color:#fff;cursor:pointer;display:grid;place-items:center}
+.play svg{width:18px;height:18px}
+.time{font:12.5px ui-monospace,Menlo,monospace;color:var(--muted);min-width:96px}
+#seek{flex:1}
+input[type=range]{accent-color:var(--accent);cursor:pointer}
+.track{display:grid;grid-template-columns:120px 62px 1fr 90px;align-items:center;gap:10px;padding:6px 0;border-top:1px solid var(--line)}
+.track .name{display:flex;align-items:center;gap:8px;font-weight:500;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.ms{display:flex;gap:4px}
+.ms button{width:26px;height:24px;border-radius:6px;border:1px solid var(--line);background:#20232c;cursor:pointer;font-size:11px;font-weight:700;color:var(--muted)}
+.ms button.m.on{background:var(--err);color:#fff;border-color:var(--err)}
+.ms button.s.on{background:var(--warn);color:#201400;border-color:var(--warn)}
+.wave{position:relative;height:38px;cursor:pointer}
+.wave canvas{width:100%;height:100%;display:block}
+.wave .ph{position:absolute;top:0;bottom:0;width:1.5px;background:#fff;opacity:.85;pointer-events:none}
+.track input[type=range]{width:100%}
+.loading{color:var(--muted);font-size:12.5px;padding:10px 0}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#2d3140;padding:9px 16px;border-radius:10px;border:1px solid var(--line);opacity:0;transition:.2s;pointer-events:none}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="8" fill="#7c5cff"/><path d="M7 20v-8M11 23V9M15 19v-6M19 25V7M23 21v-10M27 17v-2" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
+    StemForge
+  </div>
+  <div class="badges" id="badges"></div>
+</header>
+
+<main>
+  <section class="card">
+    <div class="section">
+      <h2>1 · Canciones</h2>
+      <div id="drop">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#7c5cff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        <strong>Arrastra canciones aquí</strong>
+        <span>o haz clic para elegir · MP3, WAV, FLAC, M4A, AIFF, OGG…</span>
+        <input type="file" id="file" multiple accept="audio/*,.mp3,.wav,.flac,.m4a,.aac,.ogg,.aiff,.aif,.opus,.wma,.mp4" hidden>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>2 · Tipo de separación</h2>
+      <div class="modes" id="modes"></div>
+    </div>
+
+    <div class="section">
+      <h2>3 · Opciones</h2>
+      <div class="row">
+        <label for="drumsep">Dividir batería <small style="display:block;font-size:11.5px">bombo, caja, toms, hi-hat, ride, crash</small></label>
+        <label class="switch"><input type="checkbox" id="drumsep"><span></span></label>
+      </div>
+      <div class="row">
+        <label>Calidad</label>
+        <div class="seg" id="quality">
+          <button data-v="balanced">Equilibrada</button><button data-v="max">Máxima</button>
+        </div>
+      </div>
+      <div class="row">
+        <label>Formato</label>
+        <div class="seg" id="format">
+          <button data-v="wav">WAV 24</button><button data-v="flac">FLAC</button><button data-v="mp3">MP3</button>
+        </div>
+      </div>
+      <div class="row" style="flex-direction:column;align-items:stretch">
+        <label>Carpeta de salida</label>
+        <div class="folder">
+          <code id="outdir" title=""></code>
+          <button class="btn small" id="chooseDir">Cambiar</button>
+          <button class="btn small" id="openDir">Abrir</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <h2 style="margin:0">Cola de trabajos</h2>
+        <button class="btn small" id="clearDone">Limpiar terminados</button>
+      </div>
+      <div id="jobs" style="margin-top:12px"><div class="empty">Arrastra una canción para empezar.</div></div>
+    </div>
+
+    <div class="card" id="mixer">
+      <div class="mix-head">
+        <div class="title" id="mixTitle">Mezclador</div>
+        <button class="btn small" id="mixReset">Restablecer</button>
+        <button class="btn small" id="mixClose">Cerrar</button>
+      </div>
+      <div class="transport">
+        <button class="play" id="playBtn" title="Reproducir (espacio)"></button>
+        <span class="time" id="time">0:00 / 0:00</span>
+        <input type="range" id="seek" min="0" max="1000" value="0">
+      </div>
+      <div id="tracks"></div>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const TOKEN = "__STEMFORGE_TOKEN__";
+const $ = s => document.querySelector(s);
+const STEM_COLORS = k => getComputedStyle(document.documentElement).getPropertyValue('--' + k).trim() || '#888';
+const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>';
+const ICON_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>';
+
+let state = { modes: [], settings: {}, mode: "stems4", quality: "balanced", format: "wav", drumsep: false };
+let jobs = [];
+
+async function api(path, opts = {}) {
+  opts.headers = Object.assign({ "X-StemForge-Token": TOKEN }, opts.headers || {});
+  const r = await fetch(path, opts);
+  if (!r.ok) {
+    let msg = r.statusText;
+    try { msg = (await r.json()).detail || msg } catch {}
+    throw new Error(msg);
+  }
+  return r.headers.get("content-type")?.includes("json") ? r.json() : r;
+}
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 2600); }
+function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+function fmtTime(s) { s = Math.max(0, Math.floor(s)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
+
+// ------------------------------------------------------------------ ajustes
+async function init() {
+  const info = await api("/api/info");
+  state.modes = info.modes; state.settings = info.settings;
+  state.mode = info.settings.default_mode; state.quality = info.settings.quality;
+  state.format = info.settings.output_format; state.drumsep = info.settings.drumsep;
+  const d = info.device;
+  $("#badges").innerHTML =
+    `<span class="badge ${d.machine === "arm64" ? "ok" : ""}">${d.machine === "arm64" ? "Apple Silicon" : esc(d.machine)}</span>` +
+    `<span class="badge ${d.mps ? "ok" : ""}">GPU Metal (MPS) ${d.mps ? "✓" : "✗"}</span>` +
+    `<span class="badge ${d.coreml ? "ok" : ""}">CoreML ${d.coreml ? "✓" : "✗"}</span>`;
+  renderModes(); renderOptions(); $("#outdir").textContent = info.settings.output_dir; $("#outdir").title = info.settings.output_dir;
+  await refreshJobs();
+}
+function renderModes() {
+  $("#modes").innerHTML = state.modes.map(m => `
+    <label class="mode ${m.key === state.mode ? "sel" : ""}">
+      <input type="radio" name="mode" value="${m.key}" ${m.key === state.mode ? "checked" : ""}>
+      <b>${esc(m.name)}</b><small>${esc(m.description)}</small>
+      <div class="chips">${m.outputs.map(o => `<span class="chip">${esc(o)}</span>`).join("")}</div>
+    </label>`).join("");
+  document.querySelectorAll("input[name=mode]").forEach(r => r.onchange = () => {
+    state.mode = r.value; renderModes(); renderOptions(); saveSettings({ default_mode: state.mode });
+  });
+}
+function renderOptions() {
+  const mode = state.modes.find(m => m.key === state.mode);
+  const ds = $("#drumsep"); ds.disabled = !mode?.has_drums; ds.checked = state.drumsep && !ds.disabled;
+  for (const [id, key] of [["#quality", "quality"], ["#format", "format"]])
+    document.querySelectorAll(id + " button").forEach(b => b.classList.toggle("on", b.dataset.v === state[key]));
+}
+async function saveSettings(patch) { try { state.settings = await api("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) }) } catch (e) { toast(e.message) } }
+$("#drumsep").onchange = e => { state.drumsep = e.target.checked; saveSettings({ drumsep: state.drumsep }); };
+$("#quality").onclick = e => { const v = e.target.dataset?.v; if (!v) return; state.quality = v; renderOptions(); saveSettings({ quality: v }); };
+$("#format").onclick = e => { const v = e.target.dataset?.v; if (!v) return; state.format = v; renderOptions(); saveSettings({ output_format: v }); };
+$("#chooseDir").onclick = async () => { const r = await api("/api/choose-folder", { method: "POST" }); if (r.path) { $("#outdir").textContent = r.path; $("#outdir").title = r.path; toast("Carpeta actualizada"); } };
+$("#openDir").onclick = () => api("/api/open-output", { method: "POST" });
+
+// ------------------------------------------------------------------ subida
+const drop = $("#drop"), fileIn = $("#file");
+drop.onclick = () => fileIn.click();
+fileIn.onchange = () => { upload([...fileIn.files]); fileIn.value = ""; };
+["dragenter", "dragover"].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); if (ev === "drop" || e.target === document.documentElement) drop.classList.remove("over"); }));
+document.addEventListener("drop", e => { const files = [...(e.dataTransfer?.files || [])]; if (files.length) upload(files); });
+
+async function upload(files) {
+  if (!files.length) return;
+  const fd = new FormData();
+  files.forEach(f => fd.append("files", f, f.name));
+  fd.append("mode", state.mode); fd.append("quality", state.quality);
+  fd.append("output_format", state.format); fd.append("drumsep", $("#drumsep").checked ? "true" : "false");
+  toast(`Subiendo ${files.length} archivo(s)…`);
+  try { const created = await api("/api/jobs", { method: "POST", body: fd }); toast(`${created.length} canción(es) en cola`); refreshJobs(); }
+  catch (e) { toast("Error: " + e.message); }
+}
+
+// ------------------------------------------------------------------ cola
+let pollTimer = null;
+async function refreshJobs() {
+  try { jobs = await api("/api/jobs"); } catch { return; }
+  renderJobs();
+  clearTimeout(pollTimer);
+  const active = jobs.some(j => j.status === "queued" || j.status === "running");
+  pollTimer = setTimeout(refreshJobs, active ? 700 : 4000);
+}
+const STATUS_TXT = { queued: "En cola", running: "Procesando", done: "Listo", error: "Error", cancelled: "Cancelado" };
+function renderJobs() {
+  const el = $("#jobs");
+  if (!jobs.length) { el.innerHTML = '<div class="empty">Arrastra una canción para empezar.</div>'; return; }
+  const openDetails = new Set([...el.querySelectorAll("details[open]")].map(d => d.dataset.id));
+  el.innerHTML = jobs.slice().reverse().map(j => {
+    const pct = Math.round(j.progress * 100);
+    const live = j.status === "running" || j.status === "queued";
+    const fmt = { wav: "WAV", flac: "FLAC", mp3: "MP3" }[j.format];
+    const modeName = j.mode_used && j.mode_used !== j.mode ? j.mode_used_name : j.mode_name;
+    return `<div class="job">
+      <div class="job-top">
+        <div style="flex:1;min-width:0"><div class="job-title" title="${esc(j.filename)}">${esc(j.filename)}</div>
+        <div class="job-meta">${esc(modeName)}${j.drumsep ? " + batería dividida" : ""} · ${j.quality === "max" ? "Máxima" : "Equilibrada"} · ${fmt}${j.started ? " · " + fmtTime(j.elapsed) : ""}</div></div>
+        <span class="status ${j.status}">${STATUS_TXT[j.status]}</span>
+      </div>
+      ${live ? `<div class="bar ${j.downloading ? "dl" : ""}"><i style="width:${j.status === "queued" ? 0 : pct}%"></i></div>
+               <div class="step"><span>${esc(j.step_label)}</span><span>${j.status === "running" ? pct + "%" : ""}</span></div>` : ""}
+      ${j.status === "done" ? `<div class="chips" style="margin-top:10px">${j.stems.map(s => `<span class="chip stem-chip"><i class="dot" style="background:${STEM_COLORS(s.key)}"></i>${esc(s.label)}</span>`).join("")}</div>` : ""}
+      ${j.warnings.map(w => `<div class="warn">⚠️ ${esc(w)}</div>`).join("")}
+      ${j.error ? `<div class="err">${esc(j.error)}</div>` : ""}
+      <div class="actions">
+        ${j.status === "done" ? `<button class="btn small primary" data-act="mix" data-id="${j.id}">▶ Escuchar / Mezclar</button>
+          <button class="btn small" data-act="reveal" data-id="${j.id}">Abrir en Finder</button>
+          <a class="btn small" href="/api/jobs/${j.id}/zip?token=${TOKEN}" download>Descargar ZIP</a>` : ""}
+        ${live ? `<button class="btn small danger" data-act="cancel" data-id="${j.id}">Cancelar</button>` : `<button class="btn small danger" data-act="remove" data-id="${j.id}">Quitar</button>`}
+      </div>
+      ${j.logs.length ? `<details class="log" data-id="${j.id}" ${openDetails.has(j.id) ? "open" : ""}><summary>Registro</summary><pre>${esc(j.logs.join("\n"))}</pre></details>` : ""}
+    </div>`;
+  }).join("");
+}
+$("#jobs").onclick = async e => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const id = b.dataset.id, act = b.dataset.act;
+  if (act === "cancel") await api(`/api/jobs/${id}/cancel`, { method: "POST" });
+  if (act === "remove") { await api(`/api/jobs/${id}`, { method: "DELETE" }); if (mixer.jobId === id) closeMixer(); }
+  if (act === "reveal") await api(`/api/jobs/${id}/reveal`, { method: "POST" });
+  if (act === "mix") openMixer(jobs.find(j => j.id === id));
+  refreshJobs();
+};
+$("#clearDone").onclick = async () => {
+  for (const j of jobs) if (!["queued", "running"].includes(j.status) && j.id !== mixer.jobId) await api(`/api/jobs/${j.id}`, { method: "DELETE" });
+  refreshJobs();
+};
+
+// ------------------------------------------------------------------ mezclador (Web Audio, sincronía exacta)
+const mixer = { ctx: null, jobId: null, tracks: [], playing: false, startAt: 0, offset: 0, duration: 0, raf: 0, loadToken: 0 };
+function audioCtx() { if (!mixer.ctx) mixer.ctx = new (window.AudioContext || window.webkitAudioContext)(); return mixer.ctx; }
+
+async function openMixer(job) {
+  stopPlayback(); mixer.jobId = job.id; mixer.tracks = []; mixer.offset = 0; mixer.duration = 0;
+  const token = ++mixer.loadToken;
+  $("#mixer").classList.add("open"); $("#mixTitle").textContent = job.filename;
+  $("#tracks").innerHTML = `<div class="loading">Cargando ${job.stems.length} pistas…</div>`;
+  $("#mixer").scrollIntoView({ behavior: "smooth", block: "start" });
+  const ctx = audioCtx();
+  // Por defecto no se reproduce "Instrumental" (duplicaría el resto de stems)
+  const defaultMuted = k => k === "instrumental" || (job.drumsep && ["kick", "snare", "toms", "hihat", "ride", "crash"].includes(k));
+  try {
+    const loaded = await Promise.all(job.stems.map(async s => {
+      const res = await api(`/api/jobs/${job.id}/stems/${s.key}`);
+      const buf = await ctx.decodeAudioData(await res.arrayBuffer());
+      const gain = ctx.createGain();
+      gain.connect(ctx.destination);
+      return { ...s, buffer: buf, gain, volume: 1, mute: defaultMuted(s.key), solo: false, src: null, peaks: peaks(buf, 600) };
+    }));
+    if (token !== mixer.loadToken) return;
+    mixer.tracks = loaded;
+    mixer.duration = Math.max(...loaded.map(t => t.buffer.duration));
+    renderTracks(); applyGains(); updateTime();
+  } catch (e) { $("#tracks").innerHTML = `<div class="err">No se pudo cargar el audio: ${esc(e.message)}</div>`; }
+}
+function closeMixer() { stopPlayback(); mixer.loadToken++; mixer.tracks = []; mixer.jobId = null; $("#mixer").classList.remove("open"); }
+$("#mixClose").onclick = closeMixer;
+$("#mixReset").onclick = () => { const job = jobs.find(j => j.id === mixer.jobId); mixer.tracks.forEach(t => { t.volume = 1; t.solo = false; t.mute = t.key === "instrumental" || (job?.drumsep && ["kick","snare","toms","hihat","ride","crash"].includes(t.key)); }); renderTracks(); applyGains(); };
+
+function peaks(buf, n) {
+  const ch = buf.getChannelData(0), ch2 = buf.numberOfChannels > 1 ? buf.getChannelData(1) : ch;
+  const step = Math.floor(ch.length / n) || 1, out = new Float32Array(n);
+  for (let i = 0; i < n; i++) { let m = 0; const end = Math.min(ch.length, (i + 1) * step); for (let j = i * step; j < end; j += 16) { const v = Math.abs(ch[j]) + Math.abs(ch2[j]); if (v > m) m = v; } out[i] = m / 2; }
+  return out;
+}
+function drawWave(canvas, data, color, dim) {
+  const dpr = window.devicePixelRatio || 1, w = canvas.clientWidth, h = canvas.clientHeight;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  const g = canvas.getContext("2d"); g.scale(dpr, dpr); g.clearRect(0, 0, w, h);
+  g.fillStyle = color; g.globalAlpha = dim ? .25 : .9;
+  const bw = w / data.length;
+  for (let i = 0; i < data.length; i++) { const v = Math.min(1, data[i] * 1.6) * (h / 2 - 1); g.fillRect(i * bw, h / 2 - v, Math.max(1, bw * .8), v * 2 || 1); }
+}
+function renderTracks() {
+  $("#tracks").innerHTML = mixer.tracks.map((t, i) => `
+    <div class="track" data-i="${i}">
+      <div class="name"><i class="dot" style="background:${STEM_COLORS(t.key)}"></i>${esc(t.label)}</div>
+      <div class="ms"><button class="m ${t.mute ? "on" : ""}" title="Silenciar">M</button><button class="s ${t.solo ? "on" : ""}" title="Solo">S</button></div>
+      <div class="wave"><canvas></canvas><div class="ph"></div></div>
+      <input type="range" min="0" max="150" value="${Math.round(t.volume * 100)}" title="Volumen">
+    </div>`).join("");
+  document.querySelectorAll(".track").forEach(row => {
+    const t = mixer.tracks[+row.dataset.i];
+    row.querySelector(".m").onclick = () => { t.mute = !t.mute; renderTracks(); applyGains(); };
+    row.querySelector(".s").onclick = () => { t.solo = !t.solo; renderTracks(); applyGains(); };
+    row.querySelector("input").oninput = e => { t.volume = e.target.value / 100; applyGains(); };
+    row.querySelector(".wave").onclick = e => { const r = e.currentTarget.getBoundingClientRect(); seekTo((e.clientX - r.left) / r.width * mixer.duration); };
+  });
+  redrawWaves(); updateTime();
+}
+function audible(t) { const anySolo = mixer.tracks.some(x => x.solo); return anySolo ? t.solo : !t.mute; }
+function redrawWaves() { document.querySelectorAll(".track").forEach(row => { const t = mixer.tracks[+row.dataset.i]; drawWave(row.querySelector("canvas"), t.peaks, STEM_COLORS(t.key), !audible(t)); }); }
+function applyGains() {
+  const now = audioCtx().currentTime;
+  mixer.tracks.forEach(t => t.gain.gain.setTargetAtTime(audible(t) ? t.volume : 0, now, 0.015));
+  redrawWaves();
+}
+function position() { return mixer.playing ? Math.min(mixer.duration, audioCtx().currentTime - mixer.startAt) : mixer.offset; }
+function startPlayback(at) {
+  const ctx = audioCtx(); if (ctx.state === "suspended") ctx.resume();
+  const when = ctx.currentTime + 0.06;
+  mixer.tracks.forEach(t => { const s = ctx.createBufferSource(); s.buffer = t.buffer; s.connect(t.gain); s.start(when, Math.min(at, t.buffer.duration)); t.src = s; });
+  mixer.startAt = when - at; mixer.playing = true; $("#playBtn").innerHTML = ICON_PAUSE; tick();
+}
+function stopPlayback(keepOffset = true) {
+  if (mixer.playing) mixer.offset = position();
+  mixer.tracks.forEach(t => { try { t.src?.stop(); } catch {} t.src = null; });
+  mixer.playing = false; cancelAnimationFrame(mixer.raf); $("#playBtn").innerHTML = ICON_PLAY;
+  if (!keepOffset) mixer.offset = 0;
+}
+function togglePlay() { if (!mixer.tracks.length) return; if (mixer.playing) stopPlayback(); else { if (mixer.offset >= mixer.duration - 0.05) mixer.offset = 0; startPlayback(mixer.offset); } }
+function seekTo(sec) { sec = Math.max(0, Math.min(mixer.duration, sec)); const was = mixer.playing; stopPlayback(); mixer.offset = sec; if (was) startPlayback(sec); updateTime(); }
+function updateTime() {
+  const p = position(), d = mixer.duration || 0;
+  $("#time").textContent = `${fmtTime(p)} / ${fmtTime(d)}`;
+  if (!$("#seek")._drag) $("#seek").value = d ? p / d * 1000 : 0;
+  document.querySelectorAll(".track .ph").forEach(ph => ph.style.left = (d ? p / d * 100 : 0) + "%");
+}
+function tick() { updateTime(); if (mixer.playing) { if (position() >= mixer.duration) { stopPlayback(false); updateTime(); return; } mixer.raf = requestAnimationFrame(tick); } }
+$("#playBtn").innerHTML = ICON_PLAY;
+$("#playBtn").onclick = togglePlay;
+$("#seek").oninput = e => { e.target._drag = true; $("#time").textContent = `${fmtTime(e.target.value / 1000 * mixer.duration)} / ${fmtTime(mixer.duration)}`; };
+$("#seek").onchange = e => { e.target._drag = false; seekTo(e.target.value / 1000 * mixer.duration); };
+document.addEventListener("keydown", e => { if (e.code === "Space" && mixer.tracks.length && !["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) { e.preventDefault(); togglePlay(); } });
+window.addEventListener("resize", () => mixer.tracks.length && redrawWaves());
+
+init().then(() => {
+  // Enlace directo al mezclador: #mix=<id de trabajo>
+  const m = location.hash.match(/^#mix=(\w+)$/); const j = m && jobs.find(x => x.id === m[1]);
+  if (j && j.status === "done") openMixer(j);
+}).catch(e => toast("Error iniciando: " + e.message));
+</script>
+</body>
+</html>
