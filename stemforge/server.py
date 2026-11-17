@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from starlette.background import BackgroundTask
 from pydantic import BaseModel
 
-from . import config
+from . import __version__, config
 from .engine import Engine, SeparationRequest
 from .jobs import JobManager
 from .presets import public_modes, public_stems, public_tiers, plan_for, MODES
@@ -76,6 +76,7 @@ class SettingsIn(BaseModel):
 @app.get("/api/info", dependencies=[Depends(guard)])
 def info():
     return {"modes": public_modes(), "tiers": public_tiers(), "stems": public_stems(), "settings": settings.__dict__, "device": Engine.device_info(),
+            "version": __version__,
             "formats": list(config.OUTPUT_FORMATS)}
 
 

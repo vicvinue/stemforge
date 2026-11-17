@@ -1,5 +1,7 @@
 # StemForge
 
+**Versión 0.1.0** · por [vicvinue](https://github.com/vicvinue) · Licencia MIT
+
 Separador de stems para **macOS con Apple Silicon** (M1/M2/M3/M4), inspirado en Ultimate Vocal Remover.
 Usa la GPU del Mac (PyTorch **MPS / Metal**) y **CoreML** para los modelos ONNX.
 
@@ -109,6 +111,8 @@ de `audio-separator -l` sirve (MDX-Net, VR, Demucs, MDX23C, BS/MelBand-Roformer)
 ```
 
 ## Créditos y licencias
+
+El código de StemForge se publica bajo licencia [MIT](LICENSE).
 
 - [python-audio-separator](https://github.com/nomadkaraoke/python-audio-separator) (MIT) — motor de inferencia de modelos UVR.
 - [Demucs](https://github.com/facebookresearch/demucs) (MIT) — Meta AI.

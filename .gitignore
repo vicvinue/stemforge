@@ -4,3 +4,5 @@ __pycache__/
 StemForge.app/
 .pytest_cache/
 dist/
+build/
+.DS_Store

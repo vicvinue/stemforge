@@ -87,6 +87,7 @@ def main(argv: list[str] | None = None) -> int:
 
             try:
                 webview.settings["ALLOW_DOWNLOADS"] = True  # botón ZIP
+                webview.settings["OPEN_EXTERNAL_LINKS_IN_BROWSER"] = True  # enlaces target=_blank -> navegador
             except Exception:
                 pass
             _macos_branding()

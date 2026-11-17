@@ -242,3 +242,10 @@ def test_mix_files_safe_limits_peak(tmp_path):
                                       ("hi-hat", "hihat"), ("Guitarra", "guitar"), ("vocals", "vocals")])
 def test_resolve_stem_accent_insensitive(name, key):
     assert presets.resolve_stem(name) == key
+
+
+def test_version_matches_pyproject():
+    import re
+    import stemforge
+    toml = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text()
+    assert re.search(r'^version = "([^"]+)"', toml, re.M).group(1) == stemforge.__version__
