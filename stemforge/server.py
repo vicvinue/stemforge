@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from . import config
 from .engine import Engine, SeparationRequest
 from .jobs import JobManager
-from .presets import public_modes, public_tiers, MODES
+from .presets import public_modes, public_stems, public_tiers, plan_for, MODES
 
 WEB_DIR = Path(__file__).parent / "web"
 TOKEN = secrets.token_urlsafe(24)
@@ -75,7 +75,7 @@ class SettingsIn(BaseModel):
 
 @app.get("/api/info", dependencies=[Depends(guard)])
 def info():
-    return {"modes": public_modes(), "tiers": public_tiers(), "settings": settings.__dict__, "device": Engine.device_info(),
+    return {"modes": public_modes(), "tiers": public_tiers(), "stems": public_stems(), "settings": settings.__dict__, "device": Engine.device_info(),
             "formats": list(config.OUTPUT_FORMATS)}
 
 
@@ -118,6 +118,7 @@ async def create_jobs(
     files: list[UploadFile] = File(...),
     mode: str = Form("stems4"),
     drumsep: bool = Form(False),
+    stems: str = Form(""),          # "" o "all" = todos; si no, claves separadas por coma
     quality: str = Form("balanced"),
     output_format: str = Form("wav"),
 ):
@@ -125,6 +126,12 @@ async def create_jobs(
         raise HTTPException(400, "Modo no válido")
     if output_format not in config.OUTPUT_FORMATS:
         raise HTTPException(400, "Formato no válido")
+    selected = [s for s in stems.split(",") if s.strip()] if stems.strip().lower() not in ("", "all") else None
+    try:
+        _, _, chosen = plan_for(mode, drumsep, selected)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    selected = chosen if selected else None
     created = []
     for upload in files:
         name = Path(upload.filename or "audio").name
@@ -136,7 +143,7 @@ async def create_jobs(
         with dst.open("wb") as fh:
             while chunk := await upload.read(1 << 20):
                 fh.write(chunk)
-        req = SeparationRequest(input_path=dst, mode=mode, drumsep=drumsep, quality=quality,
+        req = SeparationRequest(input_path=dst, mode=mode, drumsep=drumsep, stems=selected, quality=quality,
                                 output_dir=Path(settings.output_dir), output_format=output_format,
                                 mp3_bitrate=settings.mp3_bitrate)
         created.append(manager.submit(req, name, upload_dir=updir).to_dict())

@@ -27,6 +27,7 @@ Opcional en todos los modos con batería: **dividir la batería** en Bombo, Caja
 - **Calidad**: *Equilibrada* (≈2× más rápida: overlap 2 en Roformer, 1 shift en Demucs) o *Máxima* (ajustes originales de cada modelo).
 - **Formatos**: WAV 24-bit, FLAC 24-bit, MP3 (320k por defecto). Internamente todo se procesa en float32 44,1 kHz.
 - **Mezclador** integrado: escucha los stems sincronizados, con mute/solo/volumen y forma de onda.
+- **Qué extraer**: «Todo» o solo los stems que elijas (p. ej. solo Voz y Bajo, o solo Bombo y Caja). Solo se ejecutan los modelos necesarios: pedir solo la Voz en «4 Stems · Alta calidad» no ejecuta Demucs.
 - **Cola**: arrastra varias canciones; se procesan de a una (la GPU no se comparte).
 
 Los archivos se guardan en `~/Music/StemForge/<Canción> [<Modo>]/<Canción> - <Stem>.wav` junto a un
@@ -50,6 +51,7 @@ enlazan automáticamente para no descargarlos otra vez.
 .venv/bin/stemforge cancion.mp3                         # 4 stems alta calidad
 .venv/bin/stemforge cancion.mp3 -m instrumental -f flac
 .venv/bin/stemforge carpeta/ -m stems6 --drumsep -q max
+.venv/bin/stemforge cancion.mp3 -m stems6 -s voz,guitarra        # solo esos stems
 .venv/bin/stemforge --list-modes
 .venv/bin/stemforge --info                              # comprueba MPS / CoreML
 ```

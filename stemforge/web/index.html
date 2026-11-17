@@ -48,6 +48,17 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:1.2px;color:var(--mute
 .mode.sel .note{display:block}
 .mode .speed{color:var(--muted);font-size:11px;white-space:nowrap}
 .staged{margin-top:10px;display:grid;gap:6px}
+.pick{display:flex;flex-wrap:wrap;gap:6px}
+.pick button{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel2);color:var(--muted);padding:6px 11px;border-radius:999px;cursor:pointer;font-size:13px;transition:.12s}
+.pick button:hover{border-color:#454a5a;color:var(--text)}
+.pick button.on{background:rgba(124,92,255,.14);border-color:var(--accent);color:var(--text)}
+.pick button .dot{opacity:.35}
+.pick button.on .dot{opacity:1}
+.pick button.all{font-weight:600}
+.pick button.all.on{background:var(--accent);color:#fff}
+.pick-sub{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
+.pick[hidden]{display:none}
+.hint{color:var(--muted);font-size:11.8px;margin-top:8px}
 .staged-item{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:6px 8px 6px 11px;font-size:13px}
 .staged-item span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .staged-item small{color:var(--muted);font-size:11.5px}
@@ -162,11 +173,18 @@ input[type=range]{accent-color:var(--accent);cursor:pointer}
     </div>
 
     <div class="section">
-      <h2>3 · Opciones</h2>
-      <div class="row">
-        <label for="drumsep">Dividir batería <small style="display:block;font-size:11.5px">bombo, caja, toms, hi-hat, ride, crash</small></label>
+      <h2>3 · Qué extraer</h2>
+      <div class="pick" id="pick"></div>
+      <div class="row" style="margin-top:12px">
+        <label for="drumsep">Batería por piezas <small style="display:block;font-size:11.5px">bombo, caja, toms, hi-hat, ride, crash</small></label>
         <label class="switch"><input type="checkbox" id="drumsep"><span></span></label>
       </div>
+      <div class="pick pick-sub" id="pickDrums" hidden></div>
+      <div class="hint" id="pickHint"></div>
+    </div>
+
+    <div class="section">
+      <h2>4 · Opciones</h2>
       <div class="row">
         <label>Calidad</label>
         <div class="seg" id="quality">
@@ -228,7 +246,7 @@ const STEM_COLORS = k => getComputedStyle(document.documentElement).getPropertyV
 const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>';
 const ICON_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>';
 
-let state = { modes: [], tiers: [], staged: [], settings: {}, mode: "stems4", quality: "balanced", format: "wav", drumsep: false };
+let state = { modes: [], tiers: [], staged: [], labels: {}, drumParts: [], selAll: true, sel: new Set(), settings: {}, mode: "stems4", quality: "balanced", format: "wav", drumsep: false };
 let jobs = [];
 
 async function api(path, opts = {}) {
@@ -249,6 +267,7 @@ function fmtTime(s) { s = Math.max(0, Math.floor(s)); return Math.floor(s / 60) 
 async function init() {
   const info = await api("/api/info");
   state.modes = info.modes; state.tiers = info.tiers; state.settings = info.settings;
+  state.labels = info.stems.labels; state.drumParts = info.stems.drum_parts;
   state.mode = info.settings.default_mode; state.quality = info.settings.quality;
   state.format = info.settings.output_format; state.drumsep = info.settings.drumsep;
   const d = info.device;
@@ -274,17 +293,52 @@ function renderModes() {
       </label>`).join("");
   }).join("");
   document.querySelectorAll("input[name=mode]").forEach(r => r.onchange = () => {
-    state.mode = r.value; renderModes(); renderOptions(); renderStaged(); saveSettings({ default_mode: state.mode });
+    state.mode = r.value;
+    if (!state.selAll && !selectedStems().length) { state.selAll = true; state.sel.clear(); }
+    renderModes(); renderOptions(); renderStaged(); saveSettings({ default_mode: state.mode });
   });
 }
+// ------------------------------------------------------------------ qué extraer
+function curMode() { return state.modes.find(m => m.key === state.mode); }
+function drumsepOn() { const ds = $("#drumsep"); return ds.checked && !ds.disabled; }
+function availableStems() { return [...(curMode()?.output_keys || []), ...(drumsepOn() ? state.drumParts : [])]; }
+function selectedStems() { const av = availableStems(); return state.selAll ? av : av.filter(k => state.sel.has(k)); }
+function renderPick() {
+  const mode = curMode(); if (!mode) return;
+  const chip = k => `<button data-k="${k}" class="${state.selAll || state.sel.has(k) ? "on" : ""}"><i class="dot" style="background:${STEM_COLORS(k)}"></i>${esc(state.labels[k])}</button>`;
+  $("#pick").innerHTML = `<button class="all ${state.selAll ? "on" : ""}" data-k="__all">Todo</button>` + mode.output_keys.map(chip).join("");
+  const pd = $("#pickDrums"); pd.hidden = !drumsepOn(); pd.innerHTML = drumsepOn() ? state.drumParts.map(chip).join("") : "";
+  const n = selectedStems().length;
+  $("#pickHint").textContent = state.selAll
+    ? "Se extraerán todas las pistas. Toca un stem para extraer solo ese; luego toca otros para sumarlos."
+    : n ? `Se extraerán ${n} pista(s). Solo se ejecutan los modelos necesarios.` : "Elige al menos una pista.";
+}
+function onPick(e) {
+  const b = e.target.closest("button[data-k]"); if (!b) return;
+  const k = b.dataset.k, av = availableStems();
+  if (k === "__all") { state.selAll = true; state.sel.clear(); }
+  else if (state.selAll) { state.selAll = false; state.sel = new Set([k]); }
+  else {
+    state.sel.has(k) ? state.sel.delete(k) : state.sel.add(k);
+    if (av.every(x => state.sel.has(x))) { state.selAll = true; state.sel.clear(); }
+  }
+  renderPick(); renderStaged();
+}
+$("#pick").onclick = onPick; $("#pickDrums").onclick = onPick;
+
 function renderOptions() {
-  const mode = state.modes.find(m => m.key === state.mode);
+  const mode = curMode();
   const ds = $("#drumsep"); ds.disabled = !mode?.has_drums; ds.checked = state.drumsep && !ds.disabled;
+  renderPick();
   for (const [id, key] of [["#quality", "quality"], ["#format", "format"]])
     document.querySelectorAll(id + " button").forEach(b => b.classList.toggle("on", b.dataset.v === state[key]));
 }
 async function saveSettings(patch) { try { state.settings = await api("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) }) } catch (e) { toast(e.message) } }
-$("#drumsep").onchange = e => { state.drumsep = e.target.checked; renderStaged(); saveSettings({ drumsep: state.drumsep }); };
+$("#drumsep").onchange = e => {
+  state.drumsep = e.target.checked;
+  // Al activar piezas con una selección parcial, se marcan todas las piezas
+  if (!state.selAll) state.drumParts.forEach(k => state.drumsep ? state.sel.add(k) : state.sel.delete(k));
+  renderPick(); renderStaged(); saveSettings({ drumsep: state.drumsep }); };
 $("#quality").onclick = e => { const v = e.target.dataset?.v; if (!v) return; state.quality = v; renderOptions(); renderStaged(); saveSettings({ quality: v }); };
 $("#format").onclick = e => { const v = e.target.dataset?.v; if (!v) return; state.format = v; renderOptions(); renderStaged(); saveSettings({ output_format: v }); };
 $("#chooseDir").onclick = async () => { const r = await api("/api/choose-folder", { method: "POST" }); if (r.path) { $("#outdir").textContent = r.path; $("#outdir").title = r.path; toast("Carpeta actualizada"); } };
@@ -314,11 +368,13 @@ function renderStaged() {
     <div class="staged-item"><span title="${esc(f.name)}">${esc(f.name)}</span><small>${fmtSize(f.size)}</small>
     <button data-i="${i}" title="Quitar">×</button></div>`).join("");
   const n = state.staged.length, btn = $("#submitBtn"), mode = state.modes.find(m => m.key === state.mode);
-  btn.disabled = !n;
+  const picked = selectedStems();
+  btn.disabled = !n || !picked.length;
   btn.textContent = n ? `Agregar a la cola y separar (${n})` : "Agregar a la cola y separar";
-  const drum = $("#drumsep").checked && !$("#drumsep").disabled ? " + batería dividida" : "";
+  const drum = drumsepOn() && state.selAll ? " + batería por piezas" : "";
+  const what = state.selAll ? "Todo" : picked.map(k => state.labels[k]).join(", ") || "nada elegido";
   $("#summary").textContent = n && mode
-    ? `${mode.name}${drum} · ${state.quality === "max" ? "Máxima" : "Equilibrada"} · ${({ wav: "WAV 24", flac: "FLAC", mp3: "MP3" })[state.format]}`
+    ? `${mode.name}${drum} · ${what} · ${state.quality === "max" ? "Máxima" : "Equilibrada"} · ${({ wav: "WAV 24", flac: "FLAC", mp3: "MP3" })[state.format]}`
     : "Arrastra una o más canciones para empezar.";
 }
 $("#staged").onclick = e => { const b = e.target.closest("button[data-i]"); if (!b) return; state.staged.splice(+b.dataset.i, 1); renderStaged(); };
@@ -330,7 +386,8 @@ async function submitStaged() {
   const fd = new FormData();
   files.forEach(f => fd.append("files", f, f.name));
   fd.append("mode", state.mode); fd.append("quality", state.quality);
-  fd.append("output_format", state.format); fd.append("drumsep", $("#drumsep").checked && !$("#drumsep").disabled ? "true" : "false");
+  fd.append("output_format", state.format); fd.append("drumsep", drumsepOn() ? "true" : "false");
+  fd.append("stems", state.selAll ? "all" : selectedStems().join(","));
   try {
     const created = await api("/api/jobs", { method: "POST", body: fd });
     state.staged = state.staged.filter(f => !files.includes(f));
@@ -363,7 +420,7 @@ function renderJobs() {
     return `<div class="job">
       <div class="job-top">
         <div style="flex:1;min-width:0"><div class="job-title" title="${esc(j.filename)}">${esc(j.filename)}</div>
-        <div class="job-meta">${esc(modeName)}${j.drumsep ? " + batería dividida" : ""} · ${j.quality === "max" ? "Máxima" : "Equilibrada"} · ${fmt}${j.started ? " · " + fmtTime(j.elapsed) : ""}</div></div>
+        <div class="job-meta">${esc(modeName)}${j.drumsep ? " + batería por piezas" : ""}${j.selected ? " · " + esc(j.selected.join(", ")) : ""} · ${j.quality === "max" ? "Máxima" : "Equilibrada"} · ${fmt}${j.started ? " · " + fmtTime(j.elapsed) : ""}</div></div>
         <span class="status ${j.status}">${STATUS_TXT[j.status]}</span>
       </div>
       ${live ? `<div class="bar ${j.downloading ? "dl" : ""}"><i style="width:${j.status === "queued" ? 0 : pct}%"></i></div>

@@ -101,3 +101,37 @@ def test_modes_ranked_low_to_high_and_tiered():
     seen = [tier_keys.index(m["tier"]) for m in public]
     assert seen == sorted(seen), "las categorías deben ir de menor a mayor"
     assert all(m["quality_note"] and m["speed"] for m in public)
+
+
+def _models(steps):
+    return [s.model for s in steps]
+
+
+def test_plan_all_when_nothing_selected():
+    _, steps, outputs = presets.plan_for("stems4", False, None)
+    assert len(steps) == 2 and "instrumental" in outputs
+
+
+def test_plan_prunes_unneeded_steps():
+    _, steps, outputs = presets.plan_for("stems4", False, ["vocals"])
+    assert _models(steps) == [presets.ROFORMER_VOCALS] and outputs == ["vocals"]
+    _, steps, outputs = presets.plan_for("stems4", False, ["Batería", "bajo"])   # etiquetas
+    assert _models(steps) == [presets.ROFORMER_VOCALS, presets.DEMUCS_FT] and outputs == ["drums", "bass"]
+
+
+def test_plan_derived_instrumental_needs_its_parts():
+    _, steps, outputs = presets.plan_for("stems6", False, ["instrumental"])
+    assert _models(steps) == [presets.ROFORMER_SW] and outputs == ["instrumental"]
+
+
+def test_plan_drum_parts_pull_whole_chain():
+    _, steps, outputs = presets.plan_for("stems4", True, ["kick", "hh"])
+    assert _models(steps) == [presets.ROFORMER_VOCALS, presets.DEMUCS_FT, presets.DRUMSEP]
+    assert outputs == ["kick", "hihat"]
+    _, steps, _ = presets.plan_for("stems4", True, ["vocals"])
+    assert presets.DRUMSEP not in _models(steps)
+
+
+def test_plan_rejects_unavailable_selection():
+    with pytest.raises(ValueError):
+        presets.plan_for("instrumental", False, ["guitar"])

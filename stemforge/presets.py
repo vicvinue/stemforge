@@ -193,6 +193,43 @@ def build_plan(mode_key: str, drumsep: bool = False) -> tuple[Mode, list[Step], 
     return mode, steps, outputs
 
 
+def plan_for(mode_key: str, drumsep: bool = False, selected=None) -> tuple[Mode, list[Step], list[str]]:
+    """Como build_plan, pero solo con los stems elegidos y los pasos imprescindibles para obtenerlos.
+
+    selected: claves o etiquetas de stems (p. ej. ["vocals", "Bajo"]); None o vacío = todos.
+    """
+    mode, steps, outputs = build_plan(mode_key, drumsep)
+    if not selected:
+        return mode, steps, outputs
+    wanted = {resolve_stem(s) for s in selected}
+    chosen = [o for o in outputs if o in wanted]
+    if not chosen:
+        raise ValueError("Ninguno de los stems elegidos está disponible en este modo.")
+    required = set(chosen)
+    for key in chosen:
+        required |= set(mode.derived.get(key, ()))
+    needed: list[Step] = []
+    for step in reversed(steps):
+        if {v for v in step.mapping.values() if v} & required:
+            needed.append(step)
+            required.add(step.source)
+    needed.reverse()
+    return mode, needed, chosen
+
+
+_LABEL_TO_KEY = {v.lower(): k for k, v in STEM_LABELS.items()}
+
+
+def resolve_stem(name: str) -> str:
+    """Acepta clave ('drums'), etiqueta ('Batería') o sinónimo ('hh')."""
+    raw = name.strip().lower()
+    if raw in STEM_LABELS:
+        return raw
+    if raw in _LABEL_TO_KEY:
+        return _LABEL_TO_KEY[raw]
+    return normalize_stem_name(raw)
+
+
 def normalize_stem_name(raw: str) -> str:
     key = raw.strip().lower().replace("_", " ")
     return STEM_ALIASES.get(key, key)
@@ -209,10 +246,15 @@ def public_modes() -> list[dict]:
         tier_key, tier_label = tier_of(m.rank)
         out.append({"key": m.key, "name": m.name, "description": m.description,
                     "outputs": [STEM_LABELS[o] for o in m.outputs],
+                    "output_keys": list(m.outputs),
                     "has_drums": "drums" in m.outputs,
                     "rank": m.rank, "tier": tier_key, "tier_label": tier_label,
                     "quality_note": m.quality_note, "speed": m.speed})
     return out
+
+
+def public_stems() -> dict:
+    return {"labels": STEM_LABELS, "drum_parts": list(DRUMSEP_OUTPUTS)}
 
 
 def public_tiers() -> list[dict]:

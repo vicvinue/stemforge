@@ -17,7 +17,7 @@ import numpy as np
 import soundfile as sf
 
 from . import config
-from .presets import STEM_LABELS, STEM_ORDER, Mode, Step, build_plan, normalize_stem_name, MODES
+from .presets import STEM_LABELS, STEM_ORDER, Mode, Step, plan_for, normalize_stem_name, MODES
 
 log = logging.getLogger("stemforge")
 
@@ -81,6 +81,7 @@ class SeparationRequest:
     input_path: Path
     mode: str = "stems4"
     drumsep: bool = False
+    stems: list[str] | None = None   # stems a extraer (claves); None = todos
     output_dir: Path = config.DEFAULT_OUTPUT_DIR
     output_format: str = "wav"
     mp3_bitrate: str = "320k"
@@ -226,7 +227,7 @@ class Engine:
         global _progress_cb
         t0 = time.time()
         say = on_log or (lambda m: log.info(m))
-        mode, steps, outputs = build_plan(mode_key, req.drumsep)
+        mode, steps, outputs = plan_for(mode_key, req.drumsep, req.stems)
         progress = Progress(total_steps=len(steps))
         warnings: list[str] = []
 
@@ -245,6 +246,9 @@ class Engine:
 
         try:
             say(f"Preparando «{req.input_path.name}» · modo {mode.name}")
+            if req.stems:
+                say("Extraer: " + ", ".join(STEM_LABELS[k] for k in outputs)
+                    + f" · {len(steps)} paso(s) necesario(s)")
             mix = workdir / "mix.wav"
             duration = decode_to_wav(req.input_path, mix)
             say(f"Duración: {int(duration // 60)}:{int(duration % 60):02d}")
@@ -284,6 +288,7 @@ class Engine:
             (out_folder / "stemforge.json").write_text(json.dumps({
                 "source": str(req.input_path), "mode": mode.key, "mode_name": mode.name,
                 "models": [s.model for s in steps], "drumsep": req.drumsep,
+                "selected": "all" if not req.stems else list(outputs),
                 "format": req.output_format, "quality": req.quality, "seconds": round(elapsed, 1),
                 "stems": {k: p.name for k, p in final.items()},
             }, indent=2, ensure_ascii=False))

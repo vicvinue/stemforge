@@ -16,6 +16,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("inputs", nargs="*", type=Path, help="Archivos de audio o carpetas")
     p.add_argument("-m", "--mode", default=settings.default_mode, choices=list(MODES))
     p.add_argument("--drumsep", action="store_true", help="Dividir la batería en bombo, caja, toms, hi-hat, ride y crash")
+    p.add_argument("-s", "--stems", default="",
+                   help="Stems a extraer separados por coma (ej. voz,bajo o vocals,drums). Vacío = todos")
     p.add_argument("-f", "--format", default=settings.output_format, choices=config.OUTPUT_FORMATS)
     p.add_argument("-o", "--output", type=Path, default=Path(settings.output_dir))
     p.add_argument("--bitrate", default=settings.mp3_bitrate, help="Bitrate MP3 (ej. 320k)")
@@ -47,6 +49,15 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(f"No existe: {item}", file=sys.stderr)
 
+    selected = [s for s in args.stems.split(",") if s.strip()] or None
+    if selected:
+        from .presets import plan_for
+        try:
+            _, _, chosen = plan_for(args.mode, args.drumsep, selected)
+        except ValueError as exc:
+            p.error(str(exc))
+        selected = chosen
+
     engine = Engine()
     failures = 0
     for f in files:
@@ -55,7 +66,7 @@ def main(argv: list[str] | None = None) -> int:
             sys.stdout.write(f"\r  {pr.overall * 100:5.1f}%  {tag[:60]:60}")
             sys.stdout.flush()
 
-        req = SeparationRequest(input_path=f.resolve(), mode=args.mode, drumsep=args.drumsep,
+        req = SeparationRequest(input_path=f.resolve(), mode=args.mode, drumsep=args.drumsep, stems=selected,
                                 output_dir=args.output, output_format=args.format,
                                 mp3_bitrate=args.bitrate, quality=args.quality, keep_workdir=args.keep_work)
         try:

@@ -43,7 +43,9 @@ class Job:
             "stems": self.stems, "warnings": self.warnings,
             "mode": req.mode, "mode_name": MODES[req.mode].name,
             "mode_used": self.mode_used, "mode_used_name": MODES[self.mode_used].name if self.mode_used else "",
-            "drumsep": req.drumsep, "format": req.output_format, "quality": req.quality,
+            "drumsep": req.drumsep,
+            "selected": [STEM_LABELS[k] for k in req.stems] if req.stems else None,
+            "format": req.output_format, "quality": req.quality,
             "created": self.created, "started": self.started, "finished": self.finished,
             "elapsed": ((self.finished or time.time()) - self.started) if self.started else 0,
         }
