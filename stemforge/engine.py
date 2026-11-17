@@ -106,10 +106,10 @@ LogFn = Callable[[str], None]
 
 
 def ffmpeg_bin() -> str:
-    for candidate in (shutil.which("ffmpeg"), "/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg"):
-        if candidate and Path(candidate).exists():
-            return candidate
-    raise RuntimeError("No se encontró ffmpeg. Instálalo con: brew install ffmpeg")
+    found = config.ensure_ffmpeg()
+    if found and Path(found).exists():
+        return found
+    raise RuntimeError("No se encontró ffmpeg (ni el del sistema ni el incluido en imageio-ffmpeg).")
 
 
 def _run_ffmpeg(args: list[str]) -> None:

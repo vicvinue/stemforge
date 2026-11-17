@@ -41,13 +41,28 @@ Opcional en todos los modos con batería: **dividir la batería** en Bombo, Caja
 Los archivos se guardan en `~/Music/StemForge/<Canción> [<Modo>]/<Canción> - <Stem>.wav` junto a un
 `stemforge.json` con los modelos y ajustes usados.
 
-## Instalación
+## App autónoma (recomendado)
+
+```bash
+./build_app.sh          # crea dist/StemForge.app y dist/StemForge-<versión>.dmg
+```
+
+Abre el `.dmg` y arrastra **StemForge** a Aplicaciones. La app incluye su propio Python, todas las
+dependencias y un ffmpeg estático: no necesita esta carpeta, Homebrew ni un Python instalado. Pesa ≈ 1,4 GB
+(650 MB el DMG). Los modelos no van dentro: se descargan solos la primera vez que se usan.
+
+- Registro: `~/Library/Logs/StemForge.log`
+- CLI incluida: `/Applications/StemForge.app/Contents/Resources/stemforge cancion.mp3 -m stems4`
+- Está firmada ad-hoc (no notarizada): en este Mac abre directamente. Si la copias a otro Mac, la primera vez
+  ábrela con clic derecho → Abrir.
+
+## Instalación para desarrollo
 
 ```bash
 ./setup.sh          # instala ffmpeg/uv si faltan, crea .venv (Python 3.12) y StemForge.app
 ```
 
-Luego abre **StemForge.app** (puedes arrastrarlo al Dock) o ejecuta `./run.sh` (`./run.sh --browser` para usar el navegador).
+Luego ejecuta `./run.sh` (`./run.sh --browser` para usar el navegador). El `StemForge.app` de la raíz es solo un lanzador de desarrollo que depende de `.venv`; para uso normal usa la app autónoma.
 
 Los modelos se descargan solos la primera vez que se usan (≈ 0,5–0,7 GB cada Roformer) en
 `~/Library/Application Support/StemForge/models`. Si tienes UVR instalado, sus pesos de Demucs se

@@ -301,12 +301,19 @@ def mix_label(keys) -> str:
     return "Mezcla (" + " + ".join(STEM_LABELS[k] for k in keys) + ")"
 
 
-_LABEL_TO_KEY = {v.lower(): k for k, v in STEM_LABELS.items()}
+def _fold(text: str) -> str:
+    """Minúsculas y sin tildes: «Batería» -> «bateria»."""
+    import unicodedata
+
+    return "".join(c for c in unicodedata.normalize("NFD", text.strip().lower()) if unicodedata.category(c) != "Mn")
+
+
+_LABEL_TO_KEY = {_fold(v): k for k, v in STEM_LABELS.items()}
 
 
 def resolve_stem(name: str) -> str:
-    """Acepta clave ('drums'), etiqueta ('Batería') o sinónimo ('hh')."""
-    raw = name.strip().lower()
+    """Acepta clave ('drums'), etiqueta con o sin tilde ('Batería', 'bateria') o sinónimo ('hh')."""
+    raw = _fold(name)
     if raw in STEM_LABELS:
         return raw
     if raw in _LABEL_TO_KEY:

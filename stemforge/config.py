@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -52,6 +53,37 @@ def ensure_dirs() -> None:
     for d in (SUPPORT_DIR, MODELS_DIR, WORK_DIR):
         d.mkdir(parents=True, exist_ok=True)
     link_uvr_models()
+    ensure_ffmpeg()
+
+
+def ensure_ffmpeg() -> str | None:
+    """Garantiza un `ffmpeg` en el PATH (audio-separator lo invoca por nombre).
+
+    Usa el del sistema si existe; si no, el binario estático que trae el paquete imageio-ffmpeg
+    (la app empaquetada no depende de Homebrew). Devuelve la ruta usada.
+    """
+    found = shutil.which("ffmpeg")
+    if found:
+        return found
+    try:
+        import imageio_ffmpeg
+
+        exe = Path(imageio_ffmpeg.get_ffmpeg_exe())
+    except Exception:
+        return None
+    bin_dir = SUPPORT_DIR / "bin"
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    link = bin_dir / "ffmpeg"
+    try:
+        if link.is_symlink() or link.exists():
+            if link.resolve() != exe.resolve():
+                link.unlink()
+        if not link.exists():
+            link.symlink_to(exe)
+    except OSError:
+        return None
+    os.environ["PATH"] = f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"
+    return str(link)
 
 
 def link_uvr_models() -> int:

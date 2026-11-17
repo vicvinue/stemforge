@@ -236,3 +236,9 @@ def test_mix_files_safe_limits_peak(tmp_path):
     assert gain < 1.0 and abs(np.abs(data).max() - 0.99) < 1e-3
     out, gain = engine.mix_files_safe([_tone(tmp_path / "c.wav", 220, 0.3, amp=0.2)], tmp_path / "m2.wav")
     assert gain == 1.0
+
+
+@pytest.mark.parametrize("name,key", [("Batería", "drums"), ("bateria", "drums"), ("BAJO", "bass"),
+                                      ("hi-hat", "hihat"), ("Guitarra", "guitar"), ("vocals", "vocals")])
+def test_resolve_stem_accent_insensitive(name, key):
+    assert presets.resolve_stem(name) == key
