@@ -15,14 +15,33 @@
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
 button,input,select{font:inherit;color:inherit}
-header{display:flex;align-items:center;gap:14px;padding:16px 24px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(14,15,19,.92);backdrop-filter:blur(10px);z-index:5}
+html,body{height:100%}
+body{display:flex;flex-direction:column;overflow:hidden}
+header{flex:none;display:flex;align-items:center;gap:14px;padding:16px 24px;border-bottom:1px solid var(--line);background:var(--bg);z-index:5}
 .logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:.2px}
 .logo svg{width:28px;height:28px}
 .badges{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
 .badge{font-size:12px;padding:4px 10px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);color:var(--muted)}
 .badge.ok{color:var(--accent2);border-color:rgba(34,211,166,.35)}
-main{display:grid;grid-template-columns:minmax(330px,420px) 1fr;gap:20px;padding:20px 24px;max-width:1400px;margin:0 auto}
-@media (max-width:900px){main{grid-template-columns:1fr}}
+/* La página ocupa el alto de la ventana: cada columna tiene su propio scroll */
+main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(330px,420px) 1fr;gap:20px;padding:20px 24px;
+  width:100%;max-width:1400px;margin:0 auto}
+.col-left{display:flex;flex-direction:column;min-height:0;padding:0;overflow:hidden}
+.left-scroll{flex:1;min-height:0;overflow-y:auto;padding:18px;overscroll-behavior:contain}
+.col-right{min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-right:2px}
+.col-right>.card+.card{margin-top:20px}
+.queue-head{position:sticky;top:0;z-index:3;display:flex;align-items:center;justify-content:space-between;
+  margin:-18px -18px 0;padding:18px 18px 12px;background:var(--panel);border-radius:var(--radius) var(--radius) 0 0}
+.left-scroll,.col-right{scrollbar-width:thin;scrollbar-color:#343846 transparent}
+.left-scroll::-webkit-scrollbar,.col-right::-webkit-scrollbar{width:8px}
+.left-scroll::-webkit-scrollbar-thumb,.col-right::-webkit-scrollbar-thumb{background:#343846;border-radius:8px}
+/* Pantallas angostas: una columna y scroll normal de la página */
+@media (max-width:900px){
+  body{overflow:auto;display:block}
+  main{grid-template-columns:1fr;padding:16px}
+  .col-left,.col-right{overflow:visible}
+  .left-scroll{overflow:visible}
+}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
 h2{font-size:12px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin:0 0 12px;font-weight:600}
 .section+.section{margin-top:20px}
@@ -69,7 +88,8 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:1.2px;color:var(--mute
 .staged-item small{color:var(--muted);font-size:11.5px}
 .staged-item button{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:16px;line-height:1;padding:2px 6px;border-radius:6px}
 .staged-item button:hover{color:var(--err);background:#2a2e38}
-.submit-bar{position:sticky;bottom:0;margin:20px -18px -18px;padding:14px 18px;background:linear-gradient(180deg,rgba(22,24,30,.85),var(--panel) 35%);border-top:1px solid var(--line);border-radius:0 0 var(--radius) var(--radius)}
+.submit-bar{flex:none;padding:14px 18px;background:var(--panel);border-top:1px solid var(--line);border-radius:0 0 var(--radius) var(--radius)}
+@media (max-width:900px){.submit-bar{position:sticky;bottom:0;box-shadow:0 -8px 20px rgba(0,0,0,.35)}}
 .submit-bar .btn{width:100%;padding:11px;font-size:14.5px}
 .submit-bar .btn:disabled{opacity:.4;cursor:not-allowed;filter:none}
 .submit-bar .summary{color:var(--muted);font-size:12px;margin-top:7px;text-align:center}
@@ -125,7 +145,7 @@ details.log pre{white-space:pre-wrap;font:11.5px ui-monospace,Menlo,monospace;co
 .warn{color:var(--warn);font-size:12.5px;margin-top:6px}
 .err{color:var(--err);font-size:12.5px;margin-top:6px}
 /* Mezclador */
-#mixer{margin-top:20px;display:none}
+#mixer{display:none}
 #mixer.open{display:block}
 .mix-head{display:flex;align-items:center;gap:12px;margin-bottom:14px}
 .mix-head .title{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -160,7 +180,8 @@ input[type=range]{accent-color:var(--accent);cursor:pointer}
 </header>
 
 <main>
-  <section class="card">
+  <section class="card col-left">
+   <div class="left-scroll">
     <div class="section">
       <h2>1 · Canciones</h2>
       <div id="drop">
@@ -219,19 +240,20 @@ input[type=range]{accent-color:var(--accent);cursor:pointer}
       </div>
     </div>
 
+   </div>
     <div class="submit-bar">
       <button class="btn primary" id="submitBtn" disabled>Agregar a la cola y separar</button>
       <div class="summary" id="summary">Arrastra una o más canciones para empezar.</div>
     </div>
   </section>
 
-  <section>
+  <section class="col-right">
     <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between">
+      <div class="queue-head">
         <h2 style="margin:0">Cola de trabajos</h2>
         <button class="btn small" id="clearDone">Limpiar terminados</button>
       </div>
-      <div id="jobs" style="margin-top:12px"><div class="empty">Aún no hay trabajos. Prepara canciones a la izquierda y pulsa «Agregar a la cola y separar».</div></div>
+      <div id="jobs"><div class="empty">Aún no hay trabajos. Prepara canciones a la izquierda y pulsa «Agregar a la cola y separar».</div></div>
     </div>
 
     <div class="card" id="mixer">
