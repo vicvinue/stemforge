@@ -119,6 +119,7 @@ async def create_jobs(
     mode: str = Form("stems4"),
     drumsep: bool = Form(False),
     stems: str = Form(""),          # "" o "all" = todos; si no, claves separadas por coma
+    mix_selection: bool = Form(False),
     quality: str = Form("balanced"),
     output_format: str = Form("wav"),
 ):
@@ -143,7 +144,8 @@ async def create_jobs(
         with dst.open("wb") as fh:
             while chunk := await upload.read(1 << 20):
                 fh.write(chunk)
-        req = SeparationRequest(input_path=dst, mode=mode, drumsep=drumsep, stems=selected, quality=quality,
+        req = SeparationRequest(input_path=dst, mode=mode, drumsep=drumsep, stems=selected,
+                                mix_selection=bool(mix_selection and selected), quality=quality,
                                 output_dir=Path(settings.output_dir), output_format=output_format,
                                 mp3_bitrate=settings.mp3_bitrate)
         created.append(manager.submit(req, name, upload_dir=updir).to_dict())

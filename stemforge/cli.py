@@ -18,6 +18,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--drumsep", action="store_true", help="Dividir la batería en bombo, caja, toms, hi-hat, ride y crash")
     p.add_argument("-s", "--stems", default="",
                    help="Stems a extraer separados por coma (ej. voz,bajo o vocals,drums). Vacío = todos")
+    p.add_argument("--mix", action="store_true",
+                   help="Además de cada stem, crear un archivo con la mezcla de los stems elegidos (-s)")
     p.add_argument("-f", "--format", default=settings.output_format, choices=config.OUTPUT_FORMATS)
     p.add_argument("-o", "--output", type=Path, default=Path(settings.output_dir))
     p.add_argument("--bitrate", default=settings.mp3_bitrate, help="Bitrate MP3 (ej. 320k)")
@@ -67,6 +69,7 @@ def main(argv: list[str] | None = None) -> int:
             sys.stdout.flush()
 
         req = SeparationRequest(input_path=f.resolve(), mode=args.mode, drumsep=args.drumsep, stems=selected,
+                                mix_selection=bool(args.mix and selected),
                                 output_dir=args.output, output_format=args.format,
                                 mp3_bitrate=args.bitrate, quality=args.quality, keep_workdir=args.keep_work)
         try:

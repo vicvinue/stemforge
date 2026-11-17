@@ -217,3 +217,22 @@ def test_ensemble_skips_broken_and_averages(tmp_path):
     data, _ = sf.read(str(produced["vocals"]))
     # voz = promedio de los 2 modelos de voz restantes (amplitudes 0.1 y 0.2) -> pico ≈ 0.15
     assert abs(np.abs(data).max() - 0.15) < 0.01
+
+
+def test_mix_components_avoids_double_counting():
+    assert presets.mix_components(["bass", "vocals"]) == (["vocals", "bass"], [])
+    assert presets.mix_components(["vocals", "instrumental"]) == (["vocals", "instrumental"], [])
+    assert presets.mix_components(["instrumental", "drums", "vocals"]) == (["vocals", "drums"], ["instrumental"])
+    assert presets.mix_components(["drums", "kick", "bass"]) == (["drums", "bass"], ["kick"])
+    assert presets.mix_components(["kick", "snare"]) == (["kick", "snare"], [])
+    assert presets.mix_label(["vocals", "bass"]) == "Mezcla (Voz + Bajo)"
+
+
+def test_mix_files_safe_limits_peak(tmp_path):
+    a = _tone(tmp_path / "a.wav", 220, 0.3, amp=0.7)
+    b = _tone(tmp_path / "b.wav", 220, 0.3, amp=0.7)
+    out, gain = engine.mix_files_safe([a, b], tmp_path / "m.wav")
+    data, _ = sf.read(str(out))
+    assert gain < 1.0 and abs(np.abs(data).max() - 0.99) < 1e-3
+    out, gain = engine.mix_files_safe([_tone(tmp_path / "c.wav", 220, 0.3, amp=0.2)], tmp_path / "m2.wav")
+    assert gain == 1.0

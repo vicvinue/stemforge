@@ -45,6 +45,7 @@ class Job:
             "mode_used": self.mode_used, "mode_used_name": MODES[self.mode_used].name if self.mode_used else "",
             "drumsep": req.drumsep,
             "selected": [STEM_LABELS[k] for k in req.stems] if req.stems else None,
+            "mix_selection": req.mix_selection,
             "format": req.output_format, "quality": req.quality,
             "created": self.created, "started": self.started, "finished": self.finished,
             "elapsed": ((self.finished or time.time()) - self.started) if self.started else 0,
@@ -130,7 +131,8 @@ class JobManager:
             job.mode_used = res.mode_used
             job.warnings = res.warnings
             job.stems = [
-                {"key": key, "label": STEM_LABELS[key], "file": path.name, "path": str(path)}
+                {"key": key, "label": res.labels.get(key, STEM_LABELS.get(key, key)), "file": path.name,
+                 "path": str(path)}
                 for key, path in res.stems.items()
             ]
             job.progress, job.step_label = 1.0, "Completado"

@@ -32,6 +32,10 @@ Opcional en todos los modos con batería: **dividir la batería** en Bombo, Caja
 - **Formatos**: WAV 24-bit, FLAC 24-bit, MP3 (320k por defecto). Internamente todo se procesa en float32 44,1 kHz.
 - **Mezclador** integrado: escucha los stems sincronizados, con mute/solo/volumen y forma de onda.
 - **Qué extraer**: «Todo» o solo los stems que elijas (p. ej. solo Voz y Bajo, o solo Bombo y Caja). Solo se ejecutan los modelos necesarios: pedir solo la Voz en «4 Stems · Alta calidad» no ejecuta Demucs.
+- **Mezclar la selección**: además de cada pista por separado, un archivo extra con las pistas elegidas
+  sumadas, p. ej. `Canción - Mezcla (Voz + Bajo).wav`. No suma dos veces el mismo sonido (si eliges
+  Instrumental junto con Batería, el Instrumental se entrega aparte pero no entra en la mezcla) y baja el
+  volumen solo si la suma saturaría. Se activa al elegir dos o más pistas (con «Todo» equivaldría al original).
 - **Cola**: arrastra varias canciones; se procesan de a una (la GPU no se comparte).
 
 Los archivos se guardan en `~/Music/StemForge/<Canción> [<Modo>]/<Canción> - <Stem>.wav` junto a un
@@ -56,6 +60,7 @@ enlazan automáticamente para no descargarlos otra vez.
 .venv/bin/stemforge cancion.mp3 -m instrumental -f flac
 .venv/bin/stemforge carpeta/ -m stems6 --drumsep -q max
 .venv/bin/stemforge cancion.mp3 -m stems6 -s voz,guitarra        # solo esos stems
+.venv/bin/stemforge cancion.mp3 -m stems4 -s voz,bajo --mix         # + archivo «Mezcla (Voz + Bajo)»
 .venv/bin/stemforge --list-modes
 .venv/bin/stemforge --info                              # comprueba MPS / CoreML
 ```

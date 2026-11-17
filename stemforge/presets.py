@@ -276,6 +276,31 @@ def plan_for(mode_key: str, drumsep: bool = False, selected=None) -> tuple[Mode,
     return mode, needed, chosen
 
 
+MIX_KEY = "mezcla"
+INSTRUMENT_KEYS = ("drums", "bass", "guitar", "piano", "other")
+
+
+def mix_components(selected) -> tuple[list[str], list[str]]:
+    """Stems que entran en la mezcla de la selección, sin sonidos repetidos.
+
+    - Si está «Batería», sus piezas (bombo, caja…) ya están dentro: se omiten.
+    - Si está «Instrumental» junto a algún instrumento, el instrumental ya contiene ese
+      instrumento: se omite el instrumental.
+    Devuelve (componentes, omitidos).
+    """
+    sel = [k for k in STEM_ORDER if k in set(selected)]
+    dropped: list[str] = []
+    if "drums" in sel:
+        dropped += [k for k in sel if k in DRUMSEP_OUTPUTS]
+    if "instrumental" in sel and any(k in sel for k in (*INSTRUMENT_KEYS, *DRUMSEP_OUTPUTS)):
+        dropped.append("instrumental")
+    return [k for k in sel if k not in dropped], dropped
+
+
+def mix_label(keys) -> str:
+    return "Mezcla (" + " + ".join(STEM_LABELS[k] for k in keys) + ")"
+
+
 _LABEL_TO_KEY = {v.lower(): k for k, v in STEM_LABELS.items()}
 
 

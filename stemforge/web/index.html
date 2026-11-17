@@ -10,7 +10,7 @@
   --accent:#7c5cff; --accent2:#22d3a6; --warn:#f5a524; --err:#f04d5d; --radius:14px;
   --vocals:#ff6b9a; --instrumental:#7c5cff; --drums:#f5a524; --bass:#22d3a6; --guitar:#ff8a3d;
   --piano:#4fb3ff; --other:#a98bff; --kick:#f5c542; --snare:#ffb44a; --toms:#e8913a; --hihat:#d9e36b;
-  --ride:#9be36b; --crash:#e3d16b;
+  --ride:#9be36b; --crash:#e3d16b; --mezcla:#ffffff;
 }
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
@@ -59,6 +59,11 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:1.2px;color:var(--mute
 .pick-sub{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
 .pick[hidden]{display:none}
 .hint{color:var(--muted);font-size:11.8px;margin-top:8px}
+.mixsel{margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel2)}
+.mixsel .row{margin:0}
+.mixsel.off{opacity:.55}
+.mixsel .what{font-size:12.3px;margin-top:6px;color:#c9cdd8}
+.mixsel .what small{display:block;color:var(--muted);font-size:11.5px;margin-top:2px}
 .staged-item{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:6px 8px 6px 11px;font-size:13px}
 .staged-item span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .staged-item small{color:var(--muted);font-size:11.5px}
@@ -181,6 +186,13 @@ input[type=range]{accent-color:var(--accent);cursor:pointer}
       </div>
       <div class="pick pick-sub" id="pickDrums" hidden></div>
       <div class="hint" id="pickHint"></div>
+      <div class="mixsel off" id="mixselBox">
+        <div class="row">
+          <label for="mixsel">Mezclar la selección <small style="display:block;font-size:11.5px">un archivo extra con las pistas elegidas sumadas</small></label>
+          <label class="switch"><input type="checkbox" id="mixsel" disabled><span></span></label>
+        </div>
+        <div class="what" id="mixselWhat"></div>
+      </div>
     </div>
 
     <div class="section">
@@ -246,7 +258,7 @@ const STEM_COLORS = k => getComputedStyle(document.documentElement).getPropertyV
 const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>';
 const ICON_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>';
 
-let state = { modes: [], tiers: [], staged: [], labels: {}, drumParts: [], selAll: true, sel: new Set(), settings: {}, mode: "stems4", quality: "balanced", format: "wav", drumsep: false };
+let state = { modes: [], tiers: [], staged: [], labels: {}, drumParts: [], selAll: true, sel: new Set(), mixSel: false, settings: {}, mode: "stems4", quality: "balanced", format: "wav", drumsep: false };
 let jobs = [];
 
 async function api(path, opts = {}) {
@@ -303,6 +315,27 @@ function curMode() { return state.modes.find(m => m.key === state.mode); }
 function drumsepOn() { const ds = $("#drumsep"); return ds.checked && !ds.disabled; }
 function availableStems() { return [...(curMode()?.output_keys || []), ...(drumsepOn() ? state.drumParts : [])]; }
 function selectedStems() { const av = availableStems(); return state.selAll ? av : av.filter(k => state.sel.has(k)); }
+// Igual que presets.mix_components: evita sumar dos veces el mismo sonido
+const INSTRUMENT_KEYS = ["drums", "bass", "guitar", "piano", "other"];
+function mixComponents(keys) {
+  const order = Object.keys(state.labels), sel = order.filter(k => keys.includes(k)), dropped = [];
+  if (sel.includes("drums")) dropped.push(...sel.filter(k => state.drumParts.includes(k)));
+  if (sel.includes("instrumental") && sel.some(k => INSTRUMENT_KEYS.includes(k) || state.drumParts.includes(k))) dropped.push("instrumental");
+  return { parts: sel.filter(k => !dropped.includes(k)), dropped };
+}
+function mixAllowed() { return !state.selAll && mixComponents(selectedStems()).parts.length >= 2; }
+function renderMixSel() {
+  const box = $("#mixselBox"), cb = $("#mixsel"), what = $("#mixselWhat");
+  const allowed = mixAllowed();
+  cb.disabled = !allowed; cb.checked = allowed && state.mixSel; box.classList.toggle("off", !allowed);
+  if (state.selAll) { what.innerHTML = "<small>Elige pistas individuales para poder mezclarlas («Todo» sumado equivale a la canción original).</small>"; return; }
+  const { parts, dropped } = mixComponents(selectedStems());
+  if (parts.length < 2) { what.innerHTML = "<small>Elige al menos dos pistas distintas para mezclarlas.</small>"; return; }
+  what.innerHTML = (cb.checked ? "Archivo extra: <b>Mezcla (" : "Generaría: Mezcla (") + parts.map(k => esc(state.labels[k])).join(" + ") + (cb.checked ? ")</b>" : ")")
+    + (dropped.length ? `<small>No se suma ${dropped.map(k => esc(state.labels[k])).join(", ")}: ya está contenido en otra pista elegida (se entrega igual por separado).</small>` : "");
+}
+$("#mixsel").onchange = e => { state.mixSel = e.target.checked; renderMixSel(); renderStaged(); };
+
 function renderPick() {
   const mode = curMode(); if (!mode) return;
   const chip = k => `<button data-k="${k}" class="${state.selAll || state.sel.has(k) ? "on" : ""}"><i class="dot" style="background:${STEM_COLORS(k)}"></i>${esc(state.labels[k])}</button>`;
@@ -311,7 +344,8 @@ function renderPick() {
   const n = selectedStems().length;
   $("#pickHint").textContent = state.selAll
     ? "Se extraerán todas las pistas. Toca un stem para extraer solo ese; luego toca otros para sumarlos."
-    : n ? `Se extraerán ${n} pista(s). Solo se ejecutan los modelos necesarios.` : "Elige al menos una pista.";
+    : n ? `Se extraerán ${n} pista(s) por separado. Solo se ejecutan los modelos necesarios.` : "Elige al menos una pista.";
+  renderMixSel();
 }
 function onPick(e) {
   const b = e.target.closest("button[data-k]"); if (!b) return;
@@ -372,7 +406,8 @@ function renderStaged() {
   btn.disabled = !n || !picked.length;
   btn.textContent = n ? `Agregar a la cola y separar (${n})` : "Agregar a la cola y separar";
   const drum = drumsepOn() && state.selAll ? " + batería por piezas" : "";
-  const what = state.selAll ? "Todo" : picked.map(k => state.labels[k]).join(", ") || "nada elegido";
+  const what = (state.selAll ? "Todo" : picked.map(k => state.labels[k]).join(", ") || "nada elegido")
+    + (mixAllowed() && state.mixSel ? " + mezcla" : "");
   $("#summary").textContent = n && mode
     ? `${mode.name}${drum} · ${what} · ${state.quality === "max" ? "Máxima" : "Equilibrada"} · ${({ wav: "WAV 24", flac: "FLAC", mp3: "MP3" })[state.format]}`
     : "Arrastra una o más canciones para empezar.";
@@ -388,6 +423,7 @@ async function submitStaged() {
   fd.append("mode", state.mode); fd.append("quality", state.quality);
   fd.append("output_format", state.format); fd.append("drumsep", drumsepOn() ? "true" : "false");
   fd.append("stems", state.selAll ? "all" : selectedStems().join(","));
+  fd.append("mix_selection", mixAllowed() && state.mixSel ? "true" : "false");
   try {
     const created = await api("/api/jobs", { method: "POST", body: fd });
     state.staged = state.staged.filter(f => !files.includes(f));
@@ -420,7 +456,7 @@ function renderJobs() {
     return `<div class="job">
       <div class="job-top">
         <div style="flex:1;min-width:0"><div class="job-title" title="${esc(j.filename)}">${esc(j.filename)}</div>
-        <div class="job-meta">${esc(modeName)}${j.drumsep ? " + batería por piezas" : ""}${j.selected ? " · " + esc(j.selected.join(", ")) : ""} · ${j.quality === "max" ? "Máxima" : "Equilibrada"} · ${fmt}${j.started ? " · " + fmtTime(j.elapsed) : ""}</div></div>
+        <div class="job-meta">${esc(modeName)}${j.drumsep ? " + batería por piezas" : ""}${j.selected ? " · " + esc(j.selected.join(", ")) : ""}${j.mix_selection ? " + mezcla" : ""} · ${j.quality === "max" ? "Máxima" : "Equilibrada"} · ${fmt}${j.started ? " · " + fmtTime(j.elapsed) : ""}</div></div>
         <span class="status ${j.status}">${STATUS_TXT[j.status]}</span>
       </div>
       ${live ? `<div class="bar ${j.downloading ? "dl" : ""}"><i style="width:${j.status === "queued" ? 0 : pct}%"></i></div>
@@ -464,7 +500,7 @@ async function openMixer(job) {
   $("#mixer").scrollIntoView({ behavior: "smooth", block: "start" });
   const ctx = audioCtx();
   // Por defecto no se reproduce "Instrumental" (duplicaría el resto de stems)
-  const defaultMuted = k => k === "instrumental" || (job.drumsep && ["kick", "snare", "toms", "hihat", "ride", "crash"].includes(k));
+  const defaultMuted = k => k === "instrumental" || k === "mezcla" || (job.stems.some(s => s.key === "drums") && ["kick", "snare", "toms", "hihat", "ride", "crash"].includes(k));
   try {
     const loaded = await Promise.all(job.stems.map(async s => {
       const res = await api(`/api/jobs/${job.id}/stems/${s.key}`);
@@ -481,7 +517,7 @@ async function openMixer(job) {
 }
 function closeMixer() { stopPlayback(); mixer.loadToken++; mixer.tracks = []; mixer.jobId = null; $("#mixer").classList.remove("open"); }
 $("#mixClose").onclick = closeMixer;
-$("#mixReset").onclick = () => { const job = jobs.find(j => j.id === mixer.jobId); mixer.tracks.forEach(t => { t.volume = 1; t.solo = false; t.mute = t.key === "instrumental" || (job?.drumsep && ["kick","snare","toms","hihat","ride","crash"].includes(t.key)); }); renderTracks(); applyGains(); };
+$("#mixReset").onclick = () => { const job = jobs.find(j => j.id === mixer.jobId); mixer.tracks.forEach(t => { t.volume = 1; t.solo = false; t.mute = t.key === "instrumental" || t.key === "mezcla" || (job?.stems.some(s => s.key === "drums") && ["kick","snare","toms","hihat","ride","crash"].includes(t.key)); }); renderTracks(); applyGains(); };
 
 function peaks(buf, n) {
   const ch = buf.getChannelData(0), ch2 = buf.numberOfChannels > 1 ? buf.getChannelData(1) : ch;

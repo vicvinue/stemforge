@@ -17,7 +17,8 @@ import numpy as np
 import soundfile as sf
 
 from . import config
-from .presets import STEM_LABELS, STEM_ORDER, Step, Use, plan_for, normalize_stem_name
+from .presets import (MIX_KEY, STEM_LABELS, STEM_ORDER, Step, Use, mix_components, mix_label, normalize_stem_name,
+                      plan_for)
 
 log = logging.getLogger("stemforge")
 
@@ -82,6 +83,7 @@ class SeparationRequest:
     mode: str = "stems4"
     drumsep: bool = False
     stems: list[str] | None = None   # stems a extraer (claves); None = todos
+    mix_selection: bool = False      # además, un archivo con la mezcla de los stems elegidos
     output_dir: Path = config.DEFAULT_OUTPUT_DIR
     output_format: str = "wav"
     mp3_bitrate: str = "320k"
@@ -96,6 +98,7 @@ class SeparationResult:
     mode_used: str = ""
     seconds: float = 0.0
     warnings: list[str] = field(default_factory=list)
+    labels: dict[str, str] = field(default_factory=dict)   # clave -> etiqueta visible
 
 
 ProgressFn = Callable[[Progress], None]
@@ -149,6 +152,17 @@ def mix_files(paths: list[Path], dst: Path) -> Path:
         total[: a.shape[0]] += a
     sf.write(str(dst), total, SAMPLE_RATE, subtype="FLOAT")
     return dst
+
+
+def mix_files_safe(paths: list[Path], dst: Path, ceiling: float = 0.99) -> tuple[Path, float]:
+    """Suma stems y, si el pico supera `ceiling`, baja el volumen. Devuelve (archivo, ganancia)."""
+    mix_files(paths, dst)
+    data = _read(dst)
+    peak = float(np.abs(data).max()) if data.size else 0.0
+    gain = ceiling / peak if peak > ceiling else 1.0
+    if gain < 1.0:
+        sf.write(str(dst), data * gain, SAMPLE_RATE, subtype="FLOAT")
+    return dst, gain
 
 
 def average_files(parts: list[tuple[Path, float]], dst: Path) -> Path:
@@ -294,6 +308,27 @@ class Engine:
                     continue
                 dst = out_folder / f"{song} - {STEM_LABELS[key]}.{req.output_format}"
                 final[key] = export(stems[key], dst, req.output_format, req.mp3_bitrate)
+            labels = {k: STEM_LABELS[k] for k in final}
+
+            # Mezcla de la selección (archivo adicional)
+            mix_info = None
+            if req.mix_selection:
+                parts, dropped = mix_components([k for k in final])
+                if dropped:
+                    say("Mezcla: se omite " + ", ".join(STEM_LABELS[k] for k in dropped)
+                        + " (ya está contenido en otra pista elegida)")
+                if len(parts) >= 2:
+                    label = mix_label(parts)
+                    mixed, gain = mix_files_safe([stems[k] for k in parts], workdir / "seleccion.wav")
+                    if gain < 1.0:
+                        say(f"Mezcla: volumen reducido {20 * np.log10(gain):.1f} dB para evitar saturación")
+                    dst = out_folder / f"{song} - {label}.{req.output_format}"
+                    final[MIX_KEY] = export(mixed, dst, req.output_format, req.mp3_bitrate)
+                    labels[MIX_KEY] = label
+                    mix_info = {"stems": parts, "omitted": dropped, "gain_db": round(20 * np.log10(gain), 2)}
+                    say(f"🎚 {label}")
+                else:
+                    warnings.append("La mezcla necesita al menos dos pistas distintas; no se generó.")
 
             elapsed = time.time() - t0
             (out_folder / "stemforge.json").write_text(json.dumps({
@@ -302,11 +337,12 @@ class Engine:
                 "selected": "all" if not req.stems else list(outputs),
                 "format": req.output_format, "quality": req.quality, "seconds": round(elapsed, 1),
                 "stems": {k: p.name for k, p in final.items()},
+                "selection_mix": mix_info,
             }, indent=2, ensure_ascii=False))
             progress.step_fraction = 1.0
             emit()
             say(f"✅ Listo en {elapsed:.0f} s → {out_folder}")
-            return SeparationResult(out_folder, final, mode.key, elapsed, warnings)
+            return SeparationResult(out_folder, final, mode.key, elapsed, warnings, labels)
         finally:
             _progress_cb = None
             if not req.keep_workdir:
