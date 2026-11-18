@@ -1,8 +1,9 @@
-"""Lanzador de escritorio: servidor local + ventana nativa (WebKit) o navegador."""
+"""Lanzador de escritorio: servidor local + ventana nativa (WebKit / Edge WebView2) o navegador."""
 from __future__ import annotations
 
 import argparse
 import socket
+import sys
 import threading
 import time
 import urllib.request
@@ -24,6 +25,42 @@ def _wait_ready(url: str, timeout: float = 30) -> None:
         except Exception:
             time.sleep(0.15)
     raise RuntimeError("El servidor no arrancó a tiempo")
+
+
+def _ensure_output_streams() -> None:
+    """Sin consola (pythonw.exe en Windows) stdout/stderr son None: se mandan a un archivo de registro.
+
+    Sin esto, tqdm y el logging de uvicorn fallan al escribir.
+    """
+    if sys.stdout is not None and sys.stderr is not None:
+        return
+    from . import osutil
+
+    try:
+        log = osutil.log_file()
+        log.parent.mkdir(parents=True, exist_ok=True)
+        stream = open(log, "a", encoding="utf-8", buffering=1)
+    except OSError:
+        import os
+
+        stream = open(os.devnull, "w", encoding="utf-8")
+    if sys.stdout is None:
+        sys.stdout = stream
+    if sys.stderr is None:
+        sys.stderr = stream
+
+
+WINDOWS_APP_ID = "vicvinue.StemForge"  # el mismo AppUserModelID que el acceso directo del instalador
+
+
+def _windows_branding() -> None:
+    """Agrupa la ventana en la barra de tareas como «StemForge» (con su icono) y no como Python."""
+    try:
+        import ctypes
+
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(WINDOWS_APP_ID)
+    except Exception:
+        pass
 
 
 def _macos_branding() -> None:
@@ -153,9 +190,11 @@ def _install_about_panel() -> None:
 
 def _find_icon():
     from pathlib import Path
-    import sys
 
     here = Path(__file__).resolve()
+    if sys.platform == "win32":
+        ico = here.parent / "web" / "StemForge.ico"
+        return ico if ico.is_file() else None
     candidates = [here.parent / "web" / "StemForge.icns"]
     # Dentro del .app: Contents/Resources/StemForge.icns
     for parent in Path(sys.executable).resolve().parents:
@@ -165,11 +204,31 @@ def _find_icon():
     return next((c for c in candidates if c.is_file()), None)
 
 
+def _register_folder_picker(webview, window) -> None:
+    """El selector de carpetas usa el diálogo de la propia ventana (queda delante de ella)."""
+    from . import osutil
+
+    folder = getattr(getattr(webview, "FileDialog", None), "FOLDER", None)
+    if folder is None:
+        folder = getattr(webview, "FOLDER_DIALOG", None)
+    if folder is None:
+        return
+
+    def pick(initial: str) -> str | None:
+        result = window.create_file_dialog(folder, directory=initial)
+        if not result:
+            return None
+        return result if isinstance(result, str) else result[0]
+
+    osutil.set_folder_picker(pick)
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="stemforge-app")
     ap.add_argument("--browser", action="store_true", help="Abrir en el navegador en vez de ventana nativa")
     ap.add_argument("--port", type=int, default=0)
     args = ap.parse_args(argv)
+    _ensure_output_streams()
 
     import uvicorn
 
@@ -191,8 +250,13 @@ def main(argv: list[str] | None = None) -> int:
                 webview.settings["OPEN_EXTERNAL_LINKS_IN_BROWSER"] = True  # enlaces target=_blank -> navegador
             except Exception:
                 pass
-            _macos_branding()
+            if sys.platform == "darwin":
+                _macos_branding()
+            elif sys.platform == "win32":
+                _windows_branding()
             window = webview.create_window("StemForge", url, width=1180, height=820, min_size=(860, 600))
+            if sys.platform != "darwin":  # en Mac se mantiene el selector de AppleScript
+                _register_folder_picker(webview, window)
 
             def _on_shown():
                 try:
@@ -202,8 +266,13 @@ def main(argv: list[str] | None = None) -> int:
                 except Exception:
                     pass
 
-            window.events.shown += _on_shown
-            webview.start()
+            if sys.platform == "darwin":
+                window.events.shown += _on_shown
+            icon = _find_icon() if sys.platform == "win32" else None
+            if icon:
+                webview.start(icon=str(icon))
+            else:
+                webview.start()
             server.should_exit = True
             return 0
         except Exception as exc:  # sin pywebview → navegador

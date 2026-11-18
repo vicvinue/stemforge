@@ -1,7 +1,7 @@
 [project]
 name = "stemforge"
 version = "0.1.0"
-description = "Separador de stems para macOS Apple Silicon"
+description = "Separador de stems para macOS (Apple Silicon) y Windows"
 requires-python = ">=3.10,<3.13"
 license = {text = "MIT"}
 authors = [{name = "vicvinue"}]
@@ -12,7 +12,7 @@ dependencies = [
   "fastapi>=0.115",
   "uvicorn[standard]>=0.30",
   "python-multipart>=0.0.9",
-  "pywebview>=5.0",
+  "pywebview>=6.0",
 ]
 
 [project.urls]
@@ -24,6 +24,9 @@ dev = ["pytest>=8", "httpx2"]
 [project.scripts]
 stemforge = "stemforge.cli:main"
 stemforge-app = "stemforge.app:main"
+
+[project.gui-scripts]
+stemforge-gui = "stemforge.app:main"   # Windows: abre sin ventana de consola
 
 [build-system]
 requires = ["setuptools>=68"]

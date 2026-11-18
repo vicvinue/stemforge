@@ -13,7 +13,7 @@
   --ride:#9be36b; --crash:#e3d16b; --mezcla:#ffffff;
 }
 *{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
 button,input,select{font:inherit;color:inherit}
 html,body{height:100%}
 body{display:flex;flex-direction:column;overflow:hidden}
@@ -319,10 +319,15 @@ async function init() {
   state.mode = info.settings.default_mode; state.quality = info.settings.quality;
   state.format = info.settings.output_format; state.drumsep = info.settings.drumsep;
   const d = info.device;
-  $("#badges").innerHTML =
-    `<span class="badge ${d.machine === "arm64" ? "ok" : ""}">${d.machine === "arm64" ? "Apple Silicon" : esc(d.machine)}</span>` +
-    `<span class="badge ${d.mps ? "ok" : ""}">GPU Metal (MPS) ${d.mps ? "✓" : "✗"}</span>` +
-    `<span class="badge ${d.coreml ? "ok" : ""}">CoreML ${d.coreml ? "✓" : "✗"}</span>`;
+  state.system = d.system;
+  const badge = (ok, text) => `<span class="badge ${ok ? "ok" : ""}">${esc(text)}</span>`;
+  $("#badges").innerHTML = d.system === "Darwin"
+    ? badge(d.machine === "arm64", d.machine === "arm64" ? "Apple Silicon" : d.machine) +
+      badge(d.mps, `GPU Metal (MPS) ${d.mps ? "✓" : "✗"}`) +
+      badge(d.coreml, `CoreML ${d.coreml ? "✓" : "✗"}`)
+    : badge(true, d.system === "Windows" ? "Windows" : (d.system || d.machine)) +
+      (d.cuda ? badge(true, `GPU NVIDIA (CUDA) ✓${d.gpu ? " · " + d.gpu : ""}`)
+              : badge(false, "Sin GPU compatible: CPU"));
   renderModes(); renderOptions(); renderStaged(); $("#outdir").textContent = info.settings.output_dir; $("#outdir").title = info.settings.output_dir;
   await refreshJobs();
 }
@@ -502,7 +507,7 @@ function renderJobs() {
       ${j.error ? `<div class="err">${esc(j.error)}</div>` : ""}
       <div class="actions">
         ${j.status === "done" ? `<button class="btn small primary" data-act="mix" data-id="${j.id}">▶ Escuchar / Mezclar</button>
-          <button class="btn small" data-act="reveal" data-id="${j.id}">Abrir en Finder</button>
+          <button class="btn small" data-act="reveal" data-id="${j.id}">${state.system === "Darwin" ? "Abrir en Finder" : state.system === "Windows" ? "Abrir en el Explorador" : "Abrir carpeta"}</button>
           <a class="btn small" href="/api/jobs/${j.id}/zip?token=${TOKEN}" download>Descargar ZIP</a>` : ""}
         ${live ? `<button class="btn small danger" data-act="cancel" data-id="${j.id}">Cancelar</button>` : `<button class="btn small danger" data-act="remove" data-id="${j.id}">Quitar</button>`}
       </div>

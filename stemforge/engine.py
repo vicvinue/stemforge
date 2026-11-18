@@ -1,4 +1,4 @@
-"""Motor de separación: ejecuta los pasos de un modo con audio-separator (PyTorch MPS / CoreML)."""
+"""Motor de separación: ejecuta los pasos de un modo con audio-separator (PyTorch: MPS en Mac, CUDA en NVIDIA, si no CPU)."""
 from __future__ import annotations
 
 import gc
@@ -215,11 +215,15 @@ class Engine:
     def device_info() -> dict:
         import platform
 
-        info = {"machine": platform.machine(), "mps": False, "coreml": False}
+        info = {"system": platform.system(), "machine": platform.machine(),
+                "mps": False, "coreml": False, "cuda": False}
         try:
             import torch
 
             info["mps"] = bool(torch.backends.mps.is_available())
+            info["cuda"] = bool(torch.cuda.is_available())
+            if info["cuda"]:
+                info["gpu"] = torch.cuda.get_device_name(0)
             info["torch"] = torch.__version__
         except Exception:  # pragma: no cover
             pass
@@ -338,7 +342,7 @@ class Engine:
                 "format": req.output_format, "quality": req.quality, "seconds": round(elapsed, 1),
                 "stems": {k: p.name for k, p in final.items()},
                 "selection_mix": mix_info,
-            }, indent=2, ensure_ascii=False))
+            }, indent=2, ensure_ascii=False), encoding="utf-8")
             progress.step_fraction = 1.0
             emit()
             say(f"✅ Listo en {elapsed:.0f} s → {out_folder}")
@@ -493,7 +497,7 @@ def _config_names(models_dir: Path, model: str) -> list[str]:
         pass
     for src in sources:
         try:
-            walk(json.loads(src.read_text()))
+            walk(json.loads(src.read_text(encoding="utf-8")))
         except (OSError, ValueError):
             continue
     return list(dict.fromkeys(names))
@@ -504,7 +508,7 @@ def model_default_overlap(models_dir: Path, model: str) -> int | None:
     for name in _config_names(models_dir, model):
         cfg = models_dir / name
         if cfg.is_file():
-            m = re.search(r"^\s*num_overlap:\s*(\d+)", cfg.read_text(errors="ignore"), re.M)
+            m = re.search(r"^\s*num_overlap:\s*(\d+)", cfg.read_text(encoding="utf-8", errors="ignore"), re.M)
             if m:
                 return int(m.group(1))
     return None
@@ -535,5 +539,7 @@ def _free_memory() -> None:
 
         if torch.backends.mps.is_available():
             torch.mps.empty_cache()
+        elif torch.cuda.is_available():
+            torch.cuda.empty_cache()
     except Exception:  # pragma: no cover
         pass

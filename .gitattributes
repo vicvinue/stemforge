@@ -1,0 +1,5 @@
+# Scripts de Windows con CRLF (cmd.exe e Inno Setup los prefieren así)
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+*.iss text eol=crlf

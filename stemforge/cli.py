@@ -11,8 +11,12 @@ from .presets import MODES, modes_by_quality, tier_of
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Windows con la salida redirigida usa cp1252: que un emoji no tumbe la CLI.
+    for stream in (sys.stdout, sys.stderr):
+        if stream is not None and hasattr(stream, "reconfigure"):
+            stream.reconfigure(errors="replace")
     settings = config.Settings.load()
-    p = argparse.ArgumentParser(prog="stemforge", description="Separa canciones en stems (Apple Silicon).")
+    p = argparse.ArgumentParser(prog="stemforge", description="Separa canciones en stems (macOS y Windows).")
     p.add_argument("inputs", nargs="*", type=Path, help="Archivos de audio o carpetas")
     p.add_argument("-m", "--mode", default=settings.default_mode, choices=list(MODES))
     p.add_argument("--drumsep", action="store_true", help="Dividir la batería en bombo, caja, toms, hi-hat, ride y crash")

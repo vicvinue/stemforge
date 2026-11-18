@@ -5,7 +5,7 @@
 #
 # La app no depende de esta carpeta, de Homebrew ni de un Python del sistema.
 # Los modelos NO se incluyen: se descargan solos la primera vez en
-# ~/Library/Application Support/StemForge/models (y se reutilizan los de UVR si está instalado).
+# ~/Library/Application Support/StemForge/models.
 #
 # Uso: ./build_app.sh [--no-dmg]
 set -euo pipefail

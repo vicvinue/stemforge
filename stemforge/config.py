@@ -7,17 +7,14 @@ import shutil
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-APP_NAME = "StemForge"
-SUPPORT_DIR = Path.home() / "Library" / "Application Support" / APP_NAME
+from . import osutil
+
+APP_NAME = osutil.APP_NAME
+SUPPORT_DIR = osutil.support_dir()
 MODELS_DIR = SUPPORT_DIR / "models"
 WORK_DIR = SUPPORT_DIR / "work"
 SETTINGS_FILE = SUPPORT_DIR / "settings.json"
-DEFAULT_OUTPUT_DIR = Path.home() / "Music" / APP_NAME
-
-# Modelos Demucs que trae la app UVR instalada: se enlazan para no descargarlos otra vez.
-UVR_DEMUCS_DIR = Path(
-    "/Applications/Ultimate Vocal Remover.app/Contents/Resources/models/Demucs_Models/v3_v4_repo"
-)
+DEFAULT_OUTPUT_DIR = osutil.music_dir() / APP_NAME
 
 AUDIO_EXTENSIONS = {".wav", ".mp3", ".flac", ".m4a", ".aac", ".ogg", ".aiff", ".aif", ".wma", ".opus", ".mp4"}
 OUTPUT_FORMATS = ("wav", "flac", "mp3")
@@ -36,7 +33,7 @@ class Settings:
     @classmethod
     def load(cls) -> "Settings":
         try:
-            data = json.loads(SETTINGS_FILE.read_text())
+            data = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
             known = {k: v for k, v in data.items() if k in cls.__dataclass_fields__}
             return cls(**known)
         except (OSError, ValueError, TypeError):
@@ -45,14 +42,13 @@ class Settings:
     def save(self) -> None:
         SUPPORT_DIR.mkdir(parents=True, exist_ok=True)
         tmp = SETTINGS_FILE.with_suffix(".tmp")
-        tmp.write_text(json.dumps(asdict(self), indent=2, ensure_ascii=False))
+        tmp.write_text(json.dumps(asdict(self), indent=2, ensure_ascii=False), encoding="utf-8")
         os.replace(tmp, SETTINGS_FILE)
 
 
 def ensure_dirs() -> None:
     for d in (SUPPORT_DIR, MODELS_DIR, WORK_DIR):
         d.mkdir(parents=True, exist_ok=True)
-    link_uvr_models()
     ensure_ffmpeg()
 
 
@@ -73,32 +69,31 @@ def ensure_ffmpeg() -> str | None:
         return None
     bin_dir = SUPPORT_DIR / "bin"
     bin_dir.mkdir(parents=True, exist_ok=True)
-    link = bin_dir / "ffmpeg"
-    try:
-        if link.is_symlink() or link.exists():
-            if link.resolve() != exe.resolve():
-                link.unlink()
-        if not link.exists():
-            link.symlink_to(exe)
-    except OSError:
+    link = bin_dir / ("ffmpeg.exe" if osutil.IS_WINDOWS else "ffmpeg")
+    if not _point_to(link, exe):
         return None
     os.environ["PATH"] = f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"
     return str(link)
 
 
-def link_uvr_models() -> int:
-    """Enlaza (symlink) los pesos Demucs de UVR en la carpeta de modelos. Devuelve cuántos enlazó."""
-    if not UVR_DEMUCS_DIR.is_dir():
-        return 0
-    count = 0
-    for src in UVR_DEMUCS_DIR.iterdir():
-        if src.suffix not in {".th", ".yaml"}:
-            continue
-        dst = MODELS_DIR / src.name
-        if not dst.exists():
+def _point_to(link: Path, exe: Path) -> bool:
+    """Deja en `link` el ejecutable `exe`: symlink si se puede, si no una copia (Windows)."""
+    try:
+        if link.is_symlink():
+            if link.resolve() == exe.resolve():
+                return True
+            link.unlink()
+        elif link.exists():
+            if link.stat().st_size == exe.stat().st_size:
+                return True
+            link.unlink()
+        if not osutil.IS_WINDOWS:
             try:
-                dst.symlink_to(src)
-                count += 1
+                link.symlink_to(exe)
+                return True
             except OSError:
                 pass
-    return count
+        shutil.copy2(exe, link)
+        return True
+    except OSError:
+        return False

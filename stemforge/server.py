@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import secrets
-import subprocess
 import uuid
 import zipfile
 from pathlib import Path
@@ -12,7 +11,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from starlette.background import BackgroundTask
 from pydantic import BaseModel
 
-from . import __version__, config
+from . import __version__, config, osutil
 from .engine import Engine, SeparationRequest
 from .jobs import JobManager
 from .presets import public_modes, public_stems, public_tiers, plan_for, MODES
@@ -104,12 +103,10 @@ def update_settings(body: SettingsIn):
 
 @app.post("/api/choose-folder", dependencies=[Depends(guard)])
 def choose_folder():
-    """Abre el selector nativo de carpetas de macOS."""
-    script = 'POSIX path of (choose folder with prompt "Carpeta de salida de StemForge")'
-    proc = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
-    if proc.returncode != 0:
+    """Abre el selector nativo de carpetas (macOS, Windows o Linux)."""
+    path = osutil.choose_folder("Carpeta de salida de StemForge", settings.output_dir)
+    if not path:
         return {"path": None}
-    path = proc.stdout.strip()
     update_settings(SettingsIn(output_dir=path))
     return {"path": settings.output_dir}
 
@@ -211,13 +208,11 @@ def reveal(job_id: str):
     job = _job_or_404(job_id)
     if not job.output_folder or not Path(job.output_folder).exists():
         raise HTTPException(404, "Carpeta no encontrada")
-    subprocess.run(["open", job.output_folder], check=False)
-    return {"ok": True}
+    return {"ok": osutil.open_folder(job.output_folder)}
 
 
 @app.post("/api/open-output", dependencies=[Depends(guard)])
 def open_output():
     out = Path(settings.output_dir)
     out.mkdir(parents=True, exist_ok=True)
-    subprocess.run(["open", str(out)], check=False)
-    return {"ok": True}
+    return {"ok": osutil.open_folder(out)}

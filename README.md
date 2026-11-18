@@ -2,8 +2,8 @@
 
 **Versión 0.1.0** · por [vicvinue](https://github.com/vicvinue) · Licencia MIT
 
-Separador de stems para **macOS con Apple Silicon** (M1/M2/M3/M4).
-Usa la GPU del Mac (PyTorch **MPS / Metal**) y **CoreML** para los modelos ONNX.
+Separador de stems para **macOS con Apple Silicon** (M1/M2/M3/M4) y **Windows 10/11 (x64)**.
+En el Mac usa la GPU (PyTorch **MPS / Metal**); en Windows usa una GPU **NVIDIA (CUDA)** si la hay y, si no, la CPU.
 
 ![StemForge: cola de trabajos con una canción separándose y otra lista](docs/screenshots/cola.png)
 
@@ -50,10 +50,10 @@ Opcional en todos los modos con batería: **dividir la batería** en Bombo, Caja
   volumen solo si la suma saturaría. Se activa al elegir dos o más pistas (con «Todo» equivaldría al original).
 - **Cola**: arrastra varias canciones; se procesan de a una (la GPU no se comparte).
 
-Los archivos se guardan en `~/Music/StemForge/<Canción> [<Modo>]/<Canción> - <Stem>.wav` junto a un
-`stemforge.json` con los modelos y ajustes usados.
+Los archivos se guardan en `~/Music/StemForge/<Canción> [<Modo>]/<Canción> - <Stem>.wav` (en Windows,
+`Música\StemForge\…`) junto a un `stemforge.json` con los modelos y ajustes usados.
 
-## App autónoma (recomendado)
+## App autónoma para macOS (recomendado)
 
 ```bash
 ./build_app.sh          # crea dist/StemForge.app y dist/StemForge-<versión>.dmg
@@ -68,7 +68,33 @@ dependencias y un ffmpeg estático: no necesita esta carpeta, Homebrew ni un Pyt
 - Está firmada ad-hoc (no notarizada): en este Mac abre directamente. Si la copias a otro Mac, la primera vez
   ábrela con clic derecho → Abrir.
 
+## Windows
+
+```powershell
+powershell -ExecutionPolicy Bypass -File build_windows.ps1          # PyTorch CPU
+powershell -ExecutionPolicy Bypass -File build_windows.ps1 -Cuda    # PyTorch CUDA (GPU NVIDIA)
+```
+
+Crea `dist\StemForge\` (carpeta portable: `Abrir StemForge.cmd`) y, si está
+[Inno Setup 6](https://jrsoftware.org/isinfo.php) (`winget install JRSoftware.InnoSetup`),
+`dist\StemForge-<versión>-Setup.exe`. El instalador no pide administrador: instala en
+`%LOCALAPPDATA%\Programs\StemForge`, crea el acceso en el menú Inicio y al desinstalar pregunta si
+borrar también los modelos. Incluye su propio Python, las dependencias y ffmpeg.
+
+- Requiere Windows 10 1809+ x64 con Microsoft Edge WebView2 (viene con Windows 11 y Windows 10 al día);
+  sin WebView2 se abre en el navegador.
+- **GPU**: la versión normal usa la CPU (los Roformer van varias veces más lentos que en un Mac M1).
+  Con `-Cuda` usa una NVIDIA (driver reciente; el instalador pesa ≈ 3 GB y se divide en `Setup.exe` + `.bin`).
+  AMD/Intel no se aceleran.
+- Datos y modelos: `%LOCALAPPDATA%\StemForge` · registro: `%LOCALAPPDATA%\StemForge\logs\StemForge.log`
+- CLI incluida: `stemforge.cmd cancion.mp3 -m stems4` en la carpeta de instalación.
+- No está firmado: SmartScreen avisa la primera vez (Más información → Ejecutar de todas formas).
+- El workflow `.github/workflows/windows.yml` (manual o al publicar un tag `v*`) compila, separa audio
+  real en una máquina Windows, prueba el instalador y deja el `Setup.exe` como artefacto.
+
 ## Instalación para desarrollo
+
+macOS:
 
 ```bash
 ./setup.sh          # instala ffmpeg/uv si faltan y crea .venv (Python 3.12)
@@ -76,9 +102,15 @@ dependencias y un ffmpeg estático: no necesita esta carpeta, Homebrew ni un Pyt
 
 Luego ejecuta `./run.sh` (`./run.sh --browser` para usar el navegador).
 
+Windows (PowerShell):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File setup.ps1    # instala uv si falta, crea .venv; CUDA si hay NVIDIA
+.\run.bat                                             # .\run.bat --browser para usar el navegador
+```
+
 Los modelos se descargan solos la primera vez que se usan (≈ 0,5–0,7 GB cada Roformer) en
-`~/Library/Application Support/StemForge/models`. Si tienes UVR instalado, sus pesos de Demucs se
-enlazan automáticamente para no descargarlos otra vez.
+`~/Library/Application Support/StemForge/models` (Mac) o `%LOCALAPPDATA%\StemForge\models` (Windows).
 
 ## Línea de comandos
 
@@ -89,7 +121,7 @@ enlazan automáticamente para no descargarlos otra vez.
 .venv/bin/stemforge cancion.mp3 -m stems6 -s voz,guitarra        # solo esos stems
 .venv/bin/stemforge cancion.mp3 -m stems4 -s voz,bajo --mix         # + archivo «Mezcla (Voz + Bajo)»
 .venv/bin/stemforge --list-modes
-.venv/bin/stemforge --info                              # comprueba MPS / CoreML
+.venv/bin/stemforge --info                              # comprueba MPS / CoreML / CUDA
 ```
 
 ## Rendimiento orientativo (M1 Pro, 16 GB, calidad Equilibrada)
@@ -106,7 +138,8 @@ stemforge/
   engine.py    ejecuta los pasos con audio-separator, suma residuos, exporta con ffmpeg
   jobs.py      cola con un hilo trabajador, progreso y cancelación
   server.py    API FastAPI solo en 127.0.0.1 (token por sesión + control de Host)
-  app.py       ventana nativa WebKit (pywebview) o navegador
+  app.py       ventana nativa (pywebview: WebKit en Mac, WebView2 en Windows) o navegador
+  osutil.py    diferencias entre sistemas: carpetas de datos, abrir carpeta, selector de carpetas
   cli.py       interfaz de línea de comandos
   web/         interfaz (HTML + Web Audio)
 ```

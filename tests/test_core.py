@@ -249,3 +249,70 @@ def test_version_matches_pyproject():
     import stemforge
     toml = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text()
     assert re.search(r'^version = "([^"]+)"', toml, re.M).group(1) == stemforge.__version__
+
+
+# ------------------------------------------------------------- multiplataforma
+from stemforge import config, osutil  # noqa: E402
+
+
+@pytest.mark.parametrize("win,mac,env,expected", [
+    (True, False, {"LOCALAPPDATA": "/x/AppData/Local"}, Path("/x/AppData/Local/StemForge")),
+    (False, True, {}, Path.home() / "Library" / "Application Support" / "StemForge"),
+    (False, False, {"XDG_DATA_HOME": "/x/share"}, Path("/x/share/StemForge")),
+])
+def test_support_dir_per_platform(monkeypatch, win, mac, env, expected):
+    monkeypatch.setattr(osutil, "IS_WINDOWS", win)
+    monkeypatch.setattr(osutil, "IS_MAC", mac)
+    for k in ("LOCALAPPDATA", "XDG_DATA_HOME"):
+        monkeypatch.delenv(k, raising=False)
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+    assert osutil.support_dir() == expected
+
+
+def test_ffmpeg_copied_when_symlinks_unavailable(tmp_path, monkeypatch):
+    """En Windows (sin permiso para symlinks) se copia el binario, y no se recopia si ya está."""
+    monkeypatch.setattr(osutil, "IS_WINDOWS", True)
+    exe = tmp_path / "ffmpeg-win-x86_64.exe"
+    exe.write_bytes(b"binario")
+    link = tmp_path / "bin" / "ffmpeg.exe"
+    link.parent.mkdir()
+    assert config._point_to(link, exe)
+    assert not link.is_symlink() and link.read_bytes() == b"binario"
+    mtime = link.stat().st_mtime_ns
+    assert config._point_to(link, exe) and link.stat().st_mtime_ns == mtime
+    exe.write_bytes(b"binario nuevo")      # otra versión de imageio-ffmpeg
+    assert config._point_to(link, exe) and link.read_bytes() == b"binario nuevo"
+
+
+def test_ffmpeg_symlink_elsewhere(tmp_path, monkeypatch):
+    monkeypatch.setattr(osutil, "IS_WINDOWS", False)
+    exe = tmp_path / "ffmpeg-bin"
+    exe.write_bytes(b"x")
+    link = tmp_path / "ffmpeg"
+    assert config._point_to(link, exe) and link.is_symlink()
+
+
+def test_choose_folder_prefers_window_picker(monkeypatch):
+    seen = []
+    osutil.set_folder_picker(lambda initial: seen.append(initial) or "/elegida")
+    try:
+        assert osutil.choose_folder("Carpeta", "/inicial") == "/elegida"
+        assert seen == ["/inicial"]
+        osutil.set_folder_picker(lambda initial: None)   # cancelado
+        assert osutil.choose_folder("Carpeta") is None
+    finally:
+        osutil.set_folder_picker(None)
+
+
+def test_no_uvr_dependency():
+    assert not hasattr(config, "UVR_DEMUCS_DIR") and not hasattr(config, "link_uvr_models")
+
+
+def test_windows_launchers_reference_existing_files():
+    root = Path(__file__).resolve().parents[1]
+    assert (root / "stemforge" / "web" / "StemForge.ico").is_file()
+    iss = (root / "installer" / "StemForge.iss").read_text(encoding="utf-8-sig")
+    assert "-m stemforge.app" in iss and "vicvinue.StemForge" in iss
+    from stemforge import app
+    assert app.WINDOWS_APP_ID == "vicvinue.StemForge"

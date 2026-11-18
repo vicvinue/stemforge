@@ -1,0 +1,56 @@
+# Compila y prueba StemForge en Windows: tests, carpeta portable, instalador,
+# separación real en CPU y una instalación silenciosa del Setup.exe.
+name: Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [windows]
+    tags: ["v*"]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Tests
+        run: |
+          uv venv --python 3.12 .venv
+          uv pip install --python .venv\Scripts\python.exe -e ".[dev]"
+          .venv\Scripts\python.exe -X utf8 -m pytest -q
+
+      - name: Inno Setup
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup -y --no-progress
+          }
+
+      - name: Build
+        run: .\build_windows.ps1
+
+      - name: Prueba de humo (carpeta portable)
+        run: .\tools\smoke_windows.ps1 -AppDir dist\StemForge
+
+      - name: Instalar en silencio y probar la copia instalada
+        run: |
+          $setup = Get-ChildItem dist -Filter "StemForge-*-Setup.exe" | Select-Object -First 1
+          $proc = Start-Process $setup.FullName -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/CURRENTUSER", "/NORESTART", "/LOG=install.log" -Wait -PassThru
+          if ($proc.ExitCode -ne 0) { Get-Content install.log -Tail 40; throw "Setup terminó con $($proc.ExitCode)" }
+          $dir = "$env:LOCALAPPDATA\Programs\StemForge"
+          if (-not (Test-Path "$dir\python\pythonw.exe")) { throw "No se instaló en $dir" }
+          $lnk = Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -Filter "StemForge.lnk" -Recurse
+          if (-not $lnk) { throw "Falta el acceso directo del menú Inicio" }
+          .\tools\smoke_windows.ps1 -AppDir $dir
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: StemForge-windows
+          path: dist/StemForge-*-Setup.exe
+          retention-days: 14

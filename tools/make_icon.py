@@ -1,14 +1,16 @@
-"""Genera stemforge/web/StemForge.icns siguiendo la plantilla de iconos de macOS.
+"""Genera los iconos de StemForge.
 
-Lienzo de 1024 px con el cuadrado redondeado de 824 px centrado (margen de 100 px),
-fondo transparente y sombra suave, como el resto de apps del Dock.
+- stemforge/web/StemForge.icns (macOS): plantilla de Apple, lienzo de 1024 px con el cuadrado
+  redondeado de 824 px centrado (margen de 100 px), fondo transparente y sombra suave.
+- stemforge/web/StemForge.ico (Windows): el mismo dibujo con menos margen, de 16 a 256 px.
 
-Uso: .venv/bin/python tools/make_icon.py
+Uso: .venv/bin/python tools/make_icon.py [--ico-only]
 """
 from __future__ import annotations
 
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -16,6 +18,8 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "stemforge" / "web" / "StemForge.icns"
+OUT_ICO = ROOT / "stemforge" / "web" / "StemForge.ico"
+ICO_SIZES = [16, 20, 24, 32, 40, 48, 64, 96, 128, 256]
 
 SS = 4                      # supermuestreo para bordes suaves
 SIZE = 1024
@@ -80,8 +84,19 @@ def render(size: int = SIZE) -> Image.Image:
     return canvas.resize((size, size), Image.LANCZOS)
 
 
+def write_ico(master: Image.Image) -> None:
+    """Windows usa casi todo el lienzo: se recorta el margen de la plantilla de Apple."""
+    pad = 24  # deja ver la sombra
+    tight = master.crop((MARGIN - pad, MARGIN - pad, MARGIN + BOX + pad, MARGIN + BOX + pad))
+    tight.resize((256, 256), Image.LANCZOS).save(OUT_ICO, sizes=[(n, n) for n in ICO_SIZES])
+    print(f"Icono generado: {OUT_ICO}")
+
+
 def main() -> None:
     master = render(SIZE)
+    write_ico(master)
+    if "--ico-only" in sys.argv[1:]:
+        return
     tmp = Path(tempfile.mkdtemp())
     iconset = tmp / "StemForge.iconset"
     iconset.mkdir()
