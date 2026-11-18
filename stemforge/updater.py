@@ -295,27 +295,32 @@ class Updater:
 
     # -- buscar --------------------------------------------------------------------
     def check(self, force: bool = False) -> dict:
+        """Consulta latest.json. Nunca hay dos consultas a la vez, y una consulta no pisa una
+        descarga ya iniciada (la interfaz busca sola al abrir y el usuario puede pulsar a la vez)."""
         with self._lock:
-            busy = self.status["state"] in ("downloading", "ready", "applying")
+            if self.status["state"] in ("checking", "downloading", "ready", "applying"):
+                return dict(self.status)
             fresh = self._manifest is not None and time.time() - self._checked_at < CHECK_CACHE_SECONDS
-        if busy or (fresh and not force):
-            return self.snapshot()
-        self._set(state="checking", error=None)
+            if fresh and not force:
+                return dict(self.status)
+            self.status.update(state="checking", error=None)
         try:
             manifest = fetch_manifest()
+            failed = set(_load_state().get("failed", []))
+            p = plan(manifest, stemforge.__version__, stemforge.RUNTIME, install_kind(), platform_key(), failed)
         except Exception as exc:
-            self._set(state="error", error=f"No se pudo consultar GitHub: {exc}")
-            return self.snapshot()
-        failed = set(_load_state().get("failed", []))
-        p = plan(manifest, stemforge.__version__, stemforge.RUNTIME, install_kind(), platform_key(), failed)
+            with self._lock:
+                if self.status["state"] == "checking":
+                    self.status.update(state="error", error=f"No se pudo consultar GitHub: {exc}")
+                return dict(self.status)
         with self._lock:
-            self._manifest, self._checked_at = manifest, time.time()
-            self.status.update(state="available" if p["available"] else "uptodate", available=p["available"],
-                               latest=p["latest"], method=p["method"], size=p["size"],
-                               notes_url=p["notes_url"], progress=0.0, error=None,
-                               checked_at=time.strftime("%Y-%m-%d %H:%M"))
-            self._plan = p
-        return self.snapshot()
+            if self.status["state"] == "checking":
+                self._manifest, self._checked_at, self._plan = manifest, time.time(), p
+                self.status.update(state="available" if p["available"] else "uptodate", available=p["available"],
+                                   latest=p["latest"], method=p["method"], size=p["size"],
+                                   notes_url=p["notes_url"], progress=0.0, error=None,
+                                   checked_at=time.strftime("%Y-%m-%d %H:%M"))
+            return dict(self.status)
 
     # -- descargar -----------------------------------------------------------------
     def start_download(self) -> dict:

@@ -487,7 +487,11 @@ async function checkUpdates(manual) {
   const btn = $("#checkUpd");
   if (manual) { btn.disabled = true; btn.textContent = "Buscando…"; }
   try {
-    const u = await api(`/api/update/check${manual ? "?force=true" : ""}`, { method: "POST" });
+    let u = await api(`/api/update/check${manual ? "?force=true" : ""}`, { method: "POST" });
+    for (let i = 0; u.state === "checking" && i < 60; i++) {   // ya había una búsqueda en curso
+      await new Promise(r => setTimeout(r, 500));
+      u = await api("/api/update");
+    }
     renderUpdate(u);
     if (manual && u.state === "uptodate") toast(`Tienes la última versión (${u.current})`);
     if (manual && u.state === "error") toast(u.error);

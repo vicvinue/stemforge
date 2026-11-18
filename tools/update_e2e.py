@@ -100,7 +100,9 @@ def main() -> int:
            "BROWSER": "true" if sys.platform != "win32" else os.environ.get("BROWSER", "")}
     cmd = [*launch, "--browser", "--port", str(args.port)]
     print("==> Arrancando:", " ".join(cmd))
-    proc = subprocess.Popen(cmd, env=env, cwd=work, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    app_log = open(work / "app.log", "wb")
+    proc = subprocess.Popen(cmd, env=env, cwd=work, stdout=app_log, stderr=subprocess.STDOUT)
+    ok = False
     try:
         token = wait_server(args.port, 120)
         before = http(args.port, "/api/info", token)["version"]
@@ -144,9 +146,14 @@ def main() -> int:
             print("    el instalador terminó y volvió a abrir StemForge")
             subprocess.run(["powershell", "-NoProfile", "-Command",
                             "Get-Process pythonw -ErrorAction SilentlyContinue | Stop-Process -Force"], check=False)
+        ok = True
     finally:
         if proc.poll() is None:
             proc.kill()
+        app_log.close()
+        if not ok:
+            print("---- salida de la app ----")
+            print((work / "app.log").read_text(encoding="utf-8", errors="replace")[-4000:])
     shutil.rmtree(work, ignore_errors=True)
     print(f"✅ Actualización «{args.mode}» de punta a punta superada")
     return 0

@@ -242,3 +242,34 @@ def test_mac_full_update_swaps_bundle_from_dmg(tmp_path):
     assert (old / "Contents" / "version").read_text() == "nueva"
     assert not dmg.exists() and not old.with_name("StemForge.app.old").exists()
     assert log.read_text().strip() == str(old)
+
+
+def test_concurrent_checks_do_not_clobber_download(tmp_path, monkeypatch):
+    """Búsqueda automática lenta + búsqueda manual + descarga: una consulta tardía no pisa la descarga."""
+    import threading
+
+    monkeypatch.setenv("STEMFORGE_HOME", str(tmp_path))
+    monkeypatch.setattr(updater, "install_kind", lambda: "python")
+    release = threading.Event()
+    calls = []
+
+    def slow_fetch():
+        calls.append(1)
+        release.wait(5)
+        return dict(MANIFEST)
+
+    monkeypatch.setattr(updater, "fetch_manifest", slow_fetch)
+    up = updater.Updater()
+    t = threading.Thread(target=up.check)
+    t.start()
+    for _ in range(100):
+        if up.snapshot()["state"] == "checking":
+            break
+        threading.Event().wait(0.01)
+    assert up.check(force=True)["state"] == "checking" and len(calls) == 1   # no lanza otra consulta
+    release.set()
+    t.join(5)
+    assert up.snapshot()["state"] == "available"
+    with up._lock:
+        up.status["state"] = "downloading"          # descarga en curso
+    assert up.check(force=True)["state"] == "downloading" and len(calls) == 1
