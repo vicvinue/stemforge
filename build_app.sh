@@ -43,7 +43,14 @@ rm -rf "$SITE/torch/include" "$SITE/torch/share/cmake"
 find "$PY" -name "*.a" -delete
 # Los scripts de bin/ tienen la ruta absoluta del build en el shebang: se reemplazan por wrappers.
 find "$PY/bin" -type f ! -name "python*" -delete
+find "$PY/bin" -type l ! -exec test -e {} \; -delete   # enlaces que apuntaban a esos scripts
 rm -f "$SITE"/stemforge-*.dist-info/direct_url.json   # ruta del build: no se necesita
+
+echo "==> Bytecode"
+# Todo precompilado y validado por hash (no por fecha): la app nunca necesita escribir .pyc
+# dentro del bundle, lo que rompería la firma («a sealed resource is missing or invalid»).
+find "$PY" -name "__pycache__" -type d -prune -exec rm -rf {} +
+"$PY/bin/python3" -I -m compileall -q -j 0 --invalidation-mode unchecked-hash "$PY/lib" >/dev/null 2>&1 || true
 
 echo "==> Lanzadores"
 cat > "$APP/Contents/MacOS/StemForge" <<'SH'
@@ -52,6 +59,7 @@ cat > "$APP/Contents/MacOS/StemForge" <<'SH'
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 export PATH="/usr/bin:/bin:/usr/sbin:/sbin"
 export PYTHONNOUSERSITE=1
+export PYTHONDONTWRITEBYTECODE=1   # no escribir dentro del bundle firmado
 mkdir -p "$HOME/Library/Logs"
 exec "$APP_DIR/Resources/python/bin/python3" -I -m stemforge.app "$@" >> "$HOME/Library/Logs/StemForge.log" 2>&1
 SH
@@ -60,6 +68,7 @@ cat > "$RES/stemforge" <<'SH'
 # CLI incluida: StemForge.app/Contents/Resources/stemforge cancion.mp3 -m stems4
 RES_DIR="$(cd "$(dirname "$0")" && pwd)"
 export PYTHONNOUSERSITE=1
+export PYTHONDONTWRITEBYTECODE=1   # no escribir dentro del bundle firmado
 exec "$RES_DIR/python/bin/python3" -I -m stemforge "$@"
 SH
 chmod +x "$APP/Contents/MacOS/StemForge" "$RES/stemforge"
