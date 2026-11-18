@@ -61,6 +61,19 @@ jobs:
           if (-not $lnk) { throw "Falta el acceso directo del menú Inicio" }
           .\tools\smoke_windows.ps1 -AppDir $dir
 
+      - name: Actualizador sobre la copia instalada (pequeña y completa)
+        if: matrix.variant == 'cpu'
+        run: |
+          $dir = "$env:LOCALAPPDATA\Programs\StemForge"
+          $py = "$dir\python\python.exe"
+          # El script de prueba corre con otro Python (uv): el instalador debe poder reemplazar el instalado.
+          Get-Process pythonw -ErrorAction SilentlyContinue | Stop-Process -Force
+          uv run --no-project --python 3.12 python -X utf8 tools\update_e2e.py --mode app --port 8791 -- $py -I -B -X utf8 -m stemforge.app
+          if ($LASTEXITCODE -ne 0) { throw "Actualización pequeña: falló" }
+          $setup = (Get-ChildItem dist -Filter "StemForge-*-Setup.exe" | Select-Object -First 1).FullName
+          uv run --no-project --python 3.12 python -X utf8 tools\update_e2e.py --mode full --setup $setup --install-dir $dir --port 8792 -- $py -I -B -X utf8 -m stemforge.app
+          if ($LASTEXITCODE -ne 0) { throw "Actualización completa: falló" }
+
       - uses: actions/upload-artifact@v4
         with:
           name: StemForge-windows-${{ matrix.variant }}

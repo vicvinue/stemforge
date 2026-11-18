@@ -241,6 +241,15 @@ def main(argv: list[str] | None = None) -> int:
     url = f"http://127.0.0.1:{port}/"
     _wait_ready(url)
 
+    from . import updater
+
+    updater.confirm_boot()   # esta versión arrancó: si era una actualización, queda confirmada
+    try:
+        updater.housekeeping()
+    except OSError:
+        pass
+    updater.set_quit_handler(lambda: setattr(server, "should_exit", True))
+
     if not args.browser:
         try:
             import webview
@@ -255,6 +264,7 @@ def main(argv: list[str] | None = None) -> int:
             elif sys.platform == "win32":
                 _windows_branding()
             window = webview.create_window("StemForge", url, width=1180, height=820, min_size=(860, 600))
+            updater.set_quit_handler(window.destroy)
             if sys.platform != "darwin":  # en Mac se mantiene el selector de AppleScript
                 _register_folder_picker(webview, window)
 

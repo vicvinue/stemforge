@@ -172,6 +172,21 @@ footer a{color:var(--text);text-decoration:none;display:inline-flex;align-items:
 footer a:hover{color:var(--accent)}
 footer a svg{width:14px;height:14px;fill:currentColor}
 footer .ver{font:11.5px ui-monospace,Menlo,monospace;padding:2px 8px;border-radius:99px;background:var(--panel2);border:1px solid var(--line)}
+.update-bar{flex:none;display:flex;align-items:center;gap:10px;padding:9px 24px;font-size:13px;
+  background:rgba(124,92,255,.10);border-bottom:1px solid rgba(124,92,255,.35)}
+.update-bar[hidden]{display:none}
+.update-bar.err{background:rgba(240,77,93,.09);border-bottom-color:rgba(240,77,93,.4)}
+.update-bar .msg{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.update-bar .msg small{color:var(--muted);margin-left:6px;font-size:12px}
+.update-bar .bar{width:180px;margin:0}
+.update-bar .close{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:17px;line-height:1;padding:2px 6px;border-radius:6px}
+.update-bar .close:hover{color:var(--text)}
+footer .upd{display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap}
+footer .linkbtn{background:none;border:0;padding:0;color:var(--text);cursor:pointer;font-size:12px}
+footer .linkbtn:hover{color:var(--accent)}
+footer .linkbtn:disabled{color:var(--muted);cursor:default}
+footer label.auto{display:inline-flex;align-items:center;gap:5px;cursor:pointer}
+footer label.auto input{accent-color:var(--accent);margin:0}
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#2d3140;padding:9px 16px;border-radius:10px;border:1px solid var(--line);opacity:0;transition:.2s;pointer-events:none}
 .toast.show{opacity:1}
 </style>
@@ -184,6 +199,7 @@ footer .ver{font:11.5px ui-monospace,Menlo,monospace;padding:2px 8px;border-radi
   </div>
   <div class="badges" id="badges"></div>
 </header>
+<div class="update-bar" id="updateBar" hidden></div>
 
 <main>
   <section class="card col-left">
@@ -278,7 +294,11 @@ footer .ver{font:11.5px ui-monospace,Menlo,monospace;padding:2px 8px;border-radi
   </section>
 </main>
 <footer>
-  <span>StemForge <span class="ver" id="appVersion">v—</span></span>
+  <span class="upd">
+    <span>StemForge <span class="ver" id="appVersion">v—</span></span>
+    <button class="linkbtn" id="checkUpd" title="Buscar una versión nueva en GitHub">Buscar actualizaciones</button>
+    <label class="auto" title="Buscar actualizaciones cada vez que se abre StemForge"><input type="checkbox" id="autoUpd"> al abrir</label>
+  </span>
   <a href="https://github.com/vicvinue" target="_blank" rel="noopener noreferrer" title="Perfil de GitHub de vicvinue">
     <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
     vicvinue
@@ -335,7 +355,9 @@ async function init() {
       badge(d.coreml, `CoreML ${d.coreml ? "✓" : "✗"}`)
     : badge(true, d.system === "Windows" ? "Windows" : (d.system || d.machine)) + gpuBadge(d);
   renderModes(); renderOptions(); renderStaged(); $("#outdir").textContent = info.settings.output_dir; $("#outdir").title = info.settings.output_dir;
+  $("#autoUpd").checked = info.settings.check_updates !== false;
   await refreshJobs();
+  if ($("#autoUpd").checked) checkUpdates(false); else api("/api/update").then(renderUpdate).catch(() => {});
 }
 function renderModes() {
   const meter = rank => `<span class="meter" title="Calidad ${rank}/6">${[1, 2, 3, 4, 5, 6].map(i => `<i class="${i <= rank ? "on" : ""}"></i>`).join("")}</span>`;
@@ -424,6 +446,69 @@ $("#quality").onclick = e => { const v = e.target.dataset?.v; if (!v) return; st
 $("#format").onclick = e => { const v = e.target.dataset?.v; if (!v) return; state.format = v; renderOptions(); renderStaged(); saveSettings({ output_format: v }); };
 $("#chooseDir").onclick = async () => { const r = await api("/api/choose-folder", { method: "POST" }); if (r.path) { $("#outdir").textContent = r.path; $("#outdir").title = r.path; toast("Carpeta actualizada"); } };
 $("#openDir").onclick = () => api("/api/open-output", { method: "POST" });
+
+// ------------------------------------------------------------- actualizaciones
+const fmtDownload = b => b >= 1e9 ? (b / 1e9).toFixed(1).replace(".", ",") + " GB" : b >= 1e6 ? Math.round(b / 1e6) + " MB" : Math.max(1, Math.round(b / 1e3)) + " KB";
+let updTimer = null;
+function renderUpdate(u) {
+  const bar = $("#updateBar");
+  clearTimeout(updTimer);
+  const show = ["available", "downloading", "ready", "applying"].includes(u.state) || (u.state === "error" && u.latest);
+  bar.hidden = !show;
+  bar.classList.toggle("err", u.state === "error");
+  if (!show) return;
+  const notes = u.notes_url ? `<a class="btn small" href="${esc(u.notes_url)}" target="_blank" rel="noopener noreferrer">Novedades</a>` : "";
+  let msg = "", actions = "";
+  if (u.state === "available") {
+    const how = { app: `actualización pequeña · ${fmtDownload(u.size)}`, full: `instalador completo · ${fmtDownload(u.size)}`,
+                  git: "se actualizará con git pull", manual: "descárgala desde GitHub" }[u.method] || "";
+    msg = `<b>StemForge ${esc(u.latest)}</b> disponible <small>${how}</small>`;
+    actions = notes + (u.method === "manual" ? "" : `<button class="btn small primary" data-upd="download">Actualizar</button>`);
+  } else if (u.state === "downloading") {
+    msg = `${u.method === "git" ? "Actualizando" : "Descargando"} StemForge ${esc(u.latest)}… <small>${Math.round(u.progress * 100)} %</small>`;
+    actions = `<div class="bar"><i style="width:${(u.progress * 100).toFixed(1)}%"></i></div>`;
+    updTimer = setTimeout(() => api("/api/update").then(renderUpdate).catch(() => {}), 600);
+  } else if (u.state === "ready") {
+    msg = u.method === "full"
+      ? `Instalador de StemForge ${esc(u.latest)} listo <small>la app se cerrará, se instalará la versión nueva y volverá a abrirse</small>`
+      : `StemForge ${esc(u.latest)} listo <small>se aplica al reiniciar</small>`;
+    actions = `<button class="btn small primary" data-upd="apply">${u.method === "full" ? "Instalar y reiniciar" : "Reiniciar ahora"}</button>`;
+  } else if (u.state === "applying") {
+    msg = "Reiniciando StemForge…";
+  } else {
+    msg = `No se pudo actualizar <small>${esc(u.error)}</small>`;
+    actions = notes + `<button class="btn small" data-upd="retry">Reintentar</button>`;
+  }
+  bar.innerHTML = `<span class="msg">${msg}</span>${actions}` +
+    (u.state === "applying" || u.state === "downloading" ? "" : `<button class="close" data-upd="hide" title="Ocultar">×</button>`);
+  bar.querySelector(".msg").title = bar.querySelector(".msg").textContent;
+}
+async function checkUpdates(manual) {
+  const btn = $("#checkUpd");
+  if (manual) { btn.disabled = true; btn.textContent = "Buscando…"; }
+  try {
+    const u = await api(`/api/update/check${manual ? "?force=true" : ""}`, { method: "POST" });
+    renderUpdate(u);
+    if (manual && u.state === "uptodate") toast(`Tienes la última versión (${u.current})`);
+    if (manual && u.state === "error") toast(u.error);
+  } catch (e) {
+    if (manual) toast("Error: " + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = "Buscar actualizaciones";
+  }
+}
+$("#checkUpd").onclick = () => checkUpdates(true);
+$("#autoUpd").onchange = e => saveSettings({ check_updates: e.target.checked });
+$("#updateBar").onclick = async e => {
+  const act = e.target.closest("[data-upd]")?.dataset.upd;
+  if (!act) return;
+  if (act === "hide") { $("#updateBar").hidden = true; return; }
+  if (act === "retry") return checkUpdates(true);
+  try {
+    if (act === "download") renderUpdate(await api("/api/update/download", { method: "POST" }));
+    if (act === "apply") renderUpdate(await api("/api/update/apply", { method: "POST" }));
+  } catch (err) { toast(err.message); }
+};
 
 // ------------------------------------------------------------------ subida
 const drop = $("#drop"), fileIn = $("#file");

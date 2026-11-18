@@ -23,7 +23,9 @@ def set_folder_picker(picker: FolderPicker | None) -> None:
 
 # ------------------------------------------------------------------------- rutas
 def support_dir() -> Path:
-    """Carpeta de datos (modelos, ajustes, temporales)."""
+    """Carpeta de datos (modelos, ajustes, temporales). STEMFORGE_HOME la reemplaza (pruebas)."""
+    if os.environ.get("STEMFORGE_HOME"):
+        return Path(os.environ["STEMFORGE_HOME"])
     if IS_WINDOWS:
         base = os.environ.get("LOCALAPPDATA")
         return (Path(base) if base else Path.home() / "AppData" / "Local") / APP_NAME

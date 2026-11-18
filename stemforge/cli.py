@@ -34,6 +34,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--info", action="store_true", help="Mostrar aceleración disponible")
     args = p.parse_args(argv)
 
+    from . import updater
+
+    updater.confirm_boot()
+
     if args.list_modes:
         print("Modos de menor a mayor calidad de separación:\n")
         for m in modes_by_quality():

@@ -28,6 +28,7 @@ class Settings:
     default_mode: str = "stems4"
     quality: str = "balanced"     # balanced | max
     drumsep: bool = False
+    check_updates: bool = True    # buscar actualizaciones al abrir
     extra: dict = field(default_factory=dict)
 
     @classmethod

@@ -78,8 +78,16 @@ Name: "{autodesktop}\StemForge"; Filename: "{app}\python\pythonw.exe"; Parameter
 [Run]
 Filename: "{app}\python\pythonw.exe"; Parameters: "-I -B -X utf8 -m stemforge.app"; WorkingDir: "{app}"; \
   Description: "{cm:LaunchProgram,StemForge}"; Flags: nowait postinstall skipifsilent
+; Actualización automática (la app ejecuta el instalador con /SILENT /RELAUNCH=1): volver a abrirla.
+Filename: "{app}\python\pythonw.exe"; Parameters: "-I -B -X utf8 -m stemforge.app"; WorkingDir: "{app}"; \
+  Flags: nowait; Check: ShouldRelaunch
 
 [Code]
+function ShouldRelaunch: Boolean;
+begin
+  Result := WizardSilent and (ExpandConstant('{param:RELAUNCH|0}') = '1');
+end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   DataDir: String;

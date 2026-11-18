@@ -12,6 +12,7 @@ from starlette.background import BackgroundTask
 from pydantic import BaseModel
 
 from . import __version__, config, osutil
+from .updater import updater
 from .engine import Engine, SeparationRequest
 from .jobs import JobManager
 from .presets import public_modes, public_stems, public_tiers, plan_for, MODES
@@ -70,6 +71,7 @@ class SettingsIn(BaseModel):
     default_mode: str | None = None
     quality: str | None = None
     drumsep: bool | None = None
+    check_updates: bool | None = None
 
 
 @app.get("/api/info", dependencies=[Depends(guard)])
@@ -99,6 +101,30 @@ def update_settings(body: SettingsIn):
         setattr(settings, k, v)
     settings.save()
     return settings.__dict__
+
+
+# ------------------------------------------------------------------- actualizaciones
+@app.get("/api/update", dependencies=[Depends(guard)])
+def update_status():
+    return updater.snapshot()
+
+
+@app.post("/api/update/check", dependencies=[Depends(guard)])
+def update_check(force: bool = False):
+    """force=False usa la consulta reciente (≤ 6 h); el botón «Buscar actualizaciones» fuerza."""
+    return updater.check(force=force)
+
+
+@app.post("/api/update/download", dependencies=[Depends(guard)])
+def update_download():
+    return updater.start_download()
+
+
+@app.post("/api/update/apply", dependencies=[Depends(guard)])
+def update_apply():
+    if any(j.status in ("queued", "running") for j in manager.list()):
+        raise HTTPException(409, "Hay separaciones en curso: espera a que terminen o cancélalas.")
+    return updater.apply()
 
 
 @app.post("/api/choose-folder", dependencies=[Depends(guard)])

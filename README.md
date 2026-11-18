@@ -1,6 +1,6 @@
 # StemForge
 
-**Versión 0.2.1** · por [vicvinue](https://github.com/vicvinue) · Licencia MIT
+**Versión 0.3.0** · por [vicvinue](https://github.com/vicvinue) · Licencia MIT
 
 Separador de stems para **macOS con Apple Silicon** (M1/M2/M3/M4) y **Windows 10/11 (x64)**.
 En el Mac usa la GPU (PyTorch **MPS / Metal**). En Windows hay dos instaladores: uno para **GPU NVIDIA (CUDA)**
@@ -116,6 +116,38 @@ vienen incluidas: **solo hace falta el driver de NVIDIA** (serie 580 o posterior
   no es compatible (pasa el ratón por encima para ver el motivo).
 - En una PC sin NVIDIA compatible conviene la variante normal (CPU): pesa ≈ 270 MB en vez de ≈ 3 GB.
 
+## Actualizaciones automáticas
+
+StemForge busca versiones nuevas en las releases de GitHub al abrirse (se puede desactivar con la casilla
+«al abrir» del pie de la ventana) o con el botón **Buscar actualizaciones**. Si hay una, aparece un aviso
+con **Actualizar**: descarga, verifica el SHA-256 y, con un clic en **Reiniciar ahora**, queda aplicada.
+
+- **Actualización pequeña** (lo habitual, ≈ 0,3 MB): cuando la versión nueva solo cambia el código de
+  StemForge, se descarga solo ese código a la carpeta de datos (`…/StemForge/updates/`) y se usa desde ahí.
+  La instalación no se modifica (en el Mac la firma de la app sigue intacta). Si la versión nueva no llegara
+  a arrancar, la siguiente vez se abre la instalada y se ofrece el instalador completo.
+- **Actualización completa**: cuando cambian Python o las dependencias, se descarga el instalador de tu
+  plataforma (DMG, `Setup.exe` normal o la variante CUDA, según lo que tengas instalado). La app se cierra,
+  se instala sola y vuelve a abrirse. En el Mac reemplaza `StemForge.app` en su carpeta (si no tiene permiso
+  de escritura, abre el DMG para arrastrarla).
+- **Copia de desarrollo** (git): `git pull` en la rama `main` (y reinstala dependencias con `uv` si
+  cambiaron). Si hay cambios sin guardar, avisa y no toca nada.
+- La carpeta portable de Windows no se actualiza sola: el aviso enlaza a la release.
+- No se instala nada mientras haya separaciones en curso.
+
+Las versiones 0.2.x no traen el actualizador: hay que instalar la 0.3.0 a mano una vez.
+
+### Publicar una versión
+
+1. Sube `__version__` en `stemforge/__init__.py` y `version` en `pyproject.toml`. Si cambiaste dependencias
+   o la versión de Python, sube también `RUNTIME` (el test `test_runtime_bumped_when_dependencies_change`
+   lo recuerda): así las instalaciones existentes reciben el instalador completo en vez del código solo.
+2. `./build_app.sh` (DMG) y un tag `vX.Y.Z` en GitHub: el workflow de Windows compila los dos `Setup.exe`.
+   Copia a `dist/` el DMG y los instaladores de Windows (`gh run download <id>`).
+3. `.venv/bin/python tools/make_update_assets.py` crea `dist/stemforge-app-X.Y.Z.zip` y `dist/latest.json`.
+4. `gh release create vX.Y.Z` con **todos** los archivos que lista el paso 3. La app consulta
+   `releases/latest/download/latest.json`, así que la release debe quedar marcada como «Latest».
+
 ## Instalación para desarrollo
 
 macOS:
@@ -164,6 +196,7 @@ stemforge/
   server.py    API FastAPI solo en 127.0.0.1 (token por sesión + control de Host)
   app.py       ventana nativa (pywebview: WebKit en Mac, WebView2 en Windows) o navegador
   osutil.py    diferencias entre sistemas: carpetas de datos, abrir carpeta, selector de carpetas
+  updater.py   buscar, descargar y aplicar actualizaciones (latest.json de cada release)
   cli.py       interfaz de línea de comandos
   web/         interfaz (HTML + Web Audio)
 ```
@@ -175,7 +208,11 @@ de `audio-separator -l` sirve (MDX-Net, VR, Demucs, MDX23C, BS/MelBand-Roformer)
 
 ```bash
 .venv/bin/python -m pytest -q
+PYTHONPATH=<copia de stemforge fuera del repo> .venv/bin/python tools/update_e2e.py -- .venv/bin/python -B -m stemforge.app
 ```
+
+`tools/update_e2e.py` prueba el actualizador de punta a punta con una release falsa servida desde archivos
+locales; el workflow de Windows lo ejecuta sobre la copia instalada (actualización pequeña y completa).
 
 ## Créditos y licencias
 
