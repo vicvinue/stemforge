@@ -320,14 +320,20 @@ async function init() {
   state.format = info.settings.output_format; state.drumsep = info.settings.drumsep;
   const d = info.device;
   state.system = d.system;
-  const badge = (ok, text) => `<span class="badge ${ok ? "ok" : ""}">${esc(text)}</span>`;
+  const badge = (ok, text, tip = "") => `<span class="badge ${ok ? "ok" : ""}"${tip ? ` title="${esc(tip)}"` : ""}>${esc(text)}</span>`;
+  const gpuBadge = (d) => {
+    if (d.cuda) return badge(true, `GPU NVIDIA (CUDA) ✓${d.gpu ? " · " + d.gpu : ""}`);
+    if (!d.nvidia_gpu) return badge(false, "CPU · sin GPU NVIDIA");
+    if (!d.torch_cuda) return badge(false, "CPU · versión sin CUDA",
+      `Hay una ${d.nvidia_gpu}, pero esta instalación de StemForge no trae CUDA. Instala la variante CUDA para usarla.`);
+    return badge(false, "CPU · GPU NVIDIA no disponible",
+      `Hay una ${d.nvidia_gpu}, pero CUDA no la puede usar: actualiza el driver NVIDIA (serie 580 o posterior). Las GTX 10xx y anteriores no son compatibles.`);
+  };
   $("#badges").innerHTML = d.system === "Darwin"
     ? badge(d.machine === "arm64", d.machine === "arm64" ? "Apple Silicon" : d.machine) +
       badge(d.mps, `GPU Metal (MPS) ${d.mps ? "✓" : "✗"}`) +
       badge(d.coreml, `CoreML ${d.coreml ? "✓" : "✗"}`)
-    : badge(true, d.system === "Windows" ? "Windows" : (d.system || d.machine)) +
-      (d.cuda ? badge(true, `GPU NVIDIA (CUDA) ✓${d.gpu ? " · " + d.gpu : ""}`)
-              : badge(false, "Sin GPU compatible: CPU"));
+    : badge(true, d.system === "Windows" ? "Windows" : (d.system || d.machine)) + gpuBadge(d);
   renderModes(); renderOptions(); renderStaged(); $("#outdir").textContent = info.settings.output_dir; $("#outdir").title = info.settings.output_dir;
   await refreshJobs();
 }

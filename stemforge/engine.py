@@ -201,6 +201,29 @@ def stem_from_filename(path: Path) -> str | None:
     return normalize_stem_name(matches[-1]) if matches else None
 
 
+_nvidia_gpu: list[str | None] = []
+
+
+def nvidia_gpu_name() -> str | None:
+    """Nombre de la GPU NVIDIA según el driver (nvidia-smi), aunque PyTorch no pueda usarla.
+
+    Sirve para avisar «hay una NVIDIA pero esta instalación no trae CUDA». Se consulta una sola vez.
+    """
+    if not _nvidia_gpu:
+        name = None
+        exe = shutil.which("nvidia-smi")
+        if exe:
+            try:
+                proc = subprocess.run([exe, "--query-gpu=name", "--format=csv,noheader"], capture_output=True,
+                                      text=True, timeout=10, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+                lines = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip()]
+                name = lines[0] if proc.returncode == 0 and lines else None
+            except (OSError, subprocess.SubprocessError):
+                name = None
+        _nvidia_gpu.append(name)
+    return _nvidia_gpu[0]
+
+
 # ---------------------------------------------------------------------------
 class Engine:
     """Ejecuta separaciones. No es reentrante: usar un solo trabajador a la vez."""
@@ -216,12 +239,13 @@ class Engine:
         import platform
 
         info = {"system": platform.system(), "machine": platform.machine(),
-                "mps": False, "coreml": False, "cuda": False}
+                "mps": False, "coreml": False, "cuda": False, "torch_cuda": None, "nvidia_gpu": None}
         try:
             import torch
 
             info["mps"] = bool(torch.backends.mps.is_available())
             info["cuda"] = bool(torch.cuda.is_available())
+            info["torch_cuda"] = torch.version.cuda  # None = PyTorch compilado sin CUDA
             if info["cuda"]:
                 info["gpu"] = torch.cuda.get_device_name(0)
             info["torch"] = torch.__version__
@@ -233,6 +257,8 @@ class Engine:
             info["coreml"] = "CoreMLExecutionProvider" in ort.get_available_providers()
         except Exception:  # pragma: no cover
             pass
+        if not info["cuda"] and info["system"] != "Darwin":
+            info["nvidia_gpu"] = nvidia_gpu_name()
         return info
 
     def model_present(self, model: str) -> bool:

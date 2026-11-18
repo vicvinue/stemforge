@@ -1,9 +1,10 @@
 # StemForge
 
-**Versión 0.2.0** · por [vicvinue](https://github.com/vicvinue) · Licencia MIT
+**Versión 0.2.1** · por [vicvinue](https://github.com/vicvinue) · Licencia MIT
 
 Separador de stems para **macOS con Apple Silicon** (M1/M2/M3/M4) y **Windows 10/11 (x64)**.
-En el Mac usa la GPU (PyTorch **MPS / Metal**); en Windows usa una GPU **NVIDIA (CUDA)** si la hay y, si no, la CPU.
+En el Mac usa la GPU (PyTorch **MPS / Metal**). En Windows hay dos instaladores: uno para **GPU NVIDIA (CUDA)**
+y otro, más liviano, que usa la CPU.
 
 ![StemForge: cola de trabajos con una canción separándose y otra lista](docs/screenshots/cola.png)
 
@@ -84,7 +85,10 @@ borrar también los modelos. Incluye su propio Python, las dependencias y ffmpeg
 - Requiere Windows 10 1809+ x64 con Microsoft Edge WebView2 (viene con Windows 11 y Windows 10 al día);
   sin WebView2 se abre en el navegador.
 - **GPU**: la versión normal usa la CPU (los Roformer van varias veces más lentos que en un Mac M1).
-  Con `-Cuda` usa una NVIDIA (driver reciente; el instalador pesa ≈ 3 GB y se divide en `Setup.exe` + `.bin`).
+  Con `-Cuda` (PyTorch con CUDA 13) crea `StemForge-<versión>-CUDA-Setup.exe` + archivos `.bin`, que deben
+  estar en la misma carpeta al instalar. Usa la primera GPU NVIDIA: RTX 20xx a 50xx con driver de la serie 580
+  o posterior. Las GTX 10xx y anteriores no son compatibles con CUDA 13 y en ellas la app usa la CPU. Si una NVIDIA
+  no se puede usar, la interfaz lo indica y explica el motivo.
   AMD/Intel no se aceleran.
 - Datos y modelos: `%LOCALAPPDATA%\StemForge` · registro: `%LOCALAPPDATA%\StemForge\logs\StemForge.log`
 - CLI incluida: `stemforge.cmd cancion.mp3 -m stems4` en la carpeta de instalación.

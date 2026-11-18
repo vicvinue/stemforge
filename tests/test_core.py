@@ -316,3 +316,21 @@ def test_windows_launchers_reference_existing_files():
     assert "-m stemforge.app" in iss and "vicvinue.StemForge" in iss
     from stemforge import app
     assert app.WINDOWS_APP_ID == "vicvinue.StemForge"
+
+
+def test_device_info_reports_cuda_build_and_nvidia(monkeypatch):
+    monkeypatch.setattr(engine, "_nvidia_gpu", [])
+    monkeypatch.setattr(engine.shutil, "which", lambda name: None)
+    assert engine.nvidia_gpu_name() is None          # sin driver NVIDIA
+    info = engine.Engine.device_info()
+    assert {"system", "cuda", "torch_cuda", "nvidia_gpu"} <= info.keys()
+
+
+def test_nvidia_gpu_name_from_driver(monkeypatch):
+    import subprocess
+
+    monkeypatch.setattr(engine, "_nvidia_gpu", [])
+    monkeypatch.setattr(engine.shutil, "which", lambda name: "/fake/nvidia-smi")
+    monkeypatch.setattr(engine.subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(
+        a, 0, stdout="NVIDIA GeForce RTX 3060\n", stderr=""))
+    assert engine.nvidia_gpu_name() == "NVIDIA GeForce RTX 3060"

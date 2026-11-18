@@ -1,18 +1,19 @@
 ﻿# Empaqueta StemForge como app autónoma para Windows x64:
 #   dist\StemForge\                    Python + dependencias + ffmpeg incluidos (carpeta portable)
 #   dist\StemForge-<versión>-Setup.exe instalador (si Inno Setup 6 está instalado)
+#   dist\StemForge-<versión>-CUDA-Setup.exe + .bin   con -Cuda
 #
 # La app no depende de esta carpeta ni de un Python del sistema. Los modelos NO se incluyen:
 # se descargan solos la primera vez en %LOCALAPPDATA%\StemForge\models.
 #
-#   powershell -ExecutionPolicy Bypass -File build_windows.ps1            # PyTorch CPU (≈ 0,6 GB)
-#   powershell -ExecutionPolicy Bypass -File build_windows.ps1 -Cuda      # PyTorch CUDA (≈ 3 GB)
+#   powershell -ExecutionPolicy Bypass -File build_windows.ps1            # PyTorch CPU (instalador ≈ 270 MB)
+#   powershell -ExecutionPolicy Bypass -File build_windows.ps1 -Cuda      # PyTorch CUDA 13 para GPU NVIDIA
 #   ... -NoInstaller                                                     # solo la carpeta
 #
 # Requisitos: uv (https://astral.sh/uv) e Inno Setup 6 (https://jrsoftware.org) para el instalador.
 param(
     [switch]$Cuda,
-    [string]$CudaIndex = "https://download.pytorch.org/whl/cu128",
+    [string]$CudaIndex = "https://download.pytorch.org/whl/cu132",
     [switch]$NoInstaller
 )
 $ErrorActionPreference = "Stop"
@@ -72,7 +73,11 @@ Get-ChildItem $Py -Recurse -Directory -Filter "__pycache__" | Remove-Item -Recur
 Write-Host "==> Comprobación"
 Invoke-Native $PyExe @("-I", "-B", "-X", "utf8", "-c",
     "import torch, webview, clr, audio_separator.separator, imageio_ffmpeg, stemforge.server; " +
-    "print('    torch', torch.__version__, '| CUDA:', torch.cuda.is_available())")
+    "print('    torch', torch.__version__, '| CUDA', torch.version.cuda, '| GPU disponible:', torch.cuda.is_available())")
+if ($Cuda) {
+    Invoke-Native $PyExe @("-I", "-B", "-X", "utf8", "-c",
+        "import sys, torch; sys.exit(0 if torch.version.cuda else 'PyTorch quedó sin CUDA')")
+}
 
 Write-Host "==> Lanzadores"
 Copy-Item (Join-Path $Root "stemforge\web\StemForge.ico") (Join-Path $App "StemForge.ico")
@@ -106,4 +111,5 @@ Write-Host "==> Instalador"
 $IsccArgs = @("/Q", "/DAppVersion=$Version", "/DSourceDir=$App", "/DOutputDir=$Dist")
 if ($Cuda) { $IsccArgs += "/DCuda=1" }
 Invoke-Native $Iscc ($IsccArgs + (Join-Path $Root "installer\StemForge.iss"))
-Write-Host "✅ Listo: $Dist\StemForge-$Version-Setup.exe"
+$Suffix = if ($Cuda) { "-CUDA" } else { "" }
+Write-Host "✅ Listo: $Dist\StemForge-$Version$Suffix-Setup.exe"

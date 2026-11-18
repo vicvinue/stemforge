@@ -8,7 +8,7 @@
 param(
     [switch]$Cuda,
     [switch]$Cpu,
-    [string]$CudaIndex = "https://download.pytorch.org/whl/cu128"
+    [string]$CudaIndex = "https://download.pytorch.org/whl/cu132"
 )
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot

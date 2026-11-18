@@ -1,5 +1,6 @@
-# Compila y prueba StemForge en Windows: tests, carpeta portable, instalador,
-# separación real en CPU y una instalación silenciosa del Setup.exe.
+# Compila y prueba StemForge en Windows, variantes CPU y CUDA: tests, carpeta portable,
+# instalador, separación real y una instalación silenciosa del Setup.exe.
+# (Los runners no tienen GPU: la variante CUDA se prueba cayendo a CPU y se verifica que trae CUDA.)
 name: Windows
 
 on:
@@ -10,8 +11,13 @@ on:
 
 jobs:
   build:
+    name: build (${{ matrix.variant }})
     runs-on: windows-latest
-    timeout-minutes: 90
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [cpu, cuda]
     defaults:
       run:
         shell: pwsh
@@ -21,6 +27,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
 
       - name: Tests
+        if: matrix.variant == 'cpu'
         run: |
           uv venv --python 3.12 .venv
           uv pip install --python .venv\Scripts\python.exe -e ".[dev]"
@@ -33,14 +40,19 @@ jobs:
           }
 
       - name: Build
-        run: .\build_windows.ps1
+        run: |
+          if ("${{ matrix.variant }}" -eq "cuda") { .\build_windows.ps1 -Cuda } else { .\build_windows.ps1 }
+          Get-ChildItem dist -File | ForEach-Object { "{0}  {1:N0} MB" -f $_.Name, ($_.Length / 1MB) }
 
       - name: Prueba de humo (carpeta portable)
         run: .\tools\smoke_windows.ps1 -AppDir dist\StemForge
 
+      - name: Liberar espacio
+        run: Remove-Item dist\StemForge, .venv -Recurse -Force -ErrorAction SilentlyContinue
+
       - name: Instalar en silencio y probar la copia instalada
         run: |
-          $setup = Get-ChildItem dist -Filter "StemForge-*-Setup.exe" | Select-Object -First 1
+          $setup = Get-ChildItem dist -Filter "StemForge-*Setup.exe" | Select-Object -First 1
           $proc = Start-Process $setup.FullName -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/CURRENTUSER", "/NORESTART", "/LOG=install.log" -Wait -PassThru
           if ($proc.ExitCode -ne 0) { Get-Content install.log -Tail 40; throw "Setup terminó con $($proc.ExitCode)" }
           $dir = "$env:LOCALAPPDATA\Programs\StemForge"
@@ -51,6 +63,9 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: StemForge-windows
-          path: dist/StemForge-*-Setup.exe
+          name: StemForge-windows-${{ matrix.variant }}
+          path: |
+            dist/StemForge-*Setup.exe
+            dist/StemForge-*Setup-*.bin
+          compression-level: 0
           retention-days: 14

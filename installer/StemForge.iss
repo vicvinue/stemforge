@@ -31,7 +31,11 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.17763
 OutputDir={#OutputDir}
+#ifdef Cuda
+OutputBaseFilename=StemForge-{#AppVersion}-CUDA-Setup
+#else
 OutputBaseFilename=StemForge-{#AppVersion}-Setup
+#endif
 SetupIconFile={#SourceDir}\StemForge.ico
 UninstallDisplayIcon={app}\StemForge.ico
 UninstallDisplayName=StemForge
@@ -40,9 +44,11 @@ WizardStyle=modern
 Compression=lzma2/normal
 SolidCompression=yes
 LZMAUseSeparateProcess=yes
+LZMANumBlockThreads=4
 CloseApplications=yes
 #ifdef Cuda
 ; Con PyTorch CUDA el paquete supera los 2 GB: se divide en Setup.exe + archivos .bin
+; (cada uno bajo el límite de 2 GiB por archivo de las releases de GitHub)
 DiskSpanning=yes
 DiskSliceSize=max
 #endif
