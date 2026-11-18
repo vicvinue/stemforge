@@ -5,6 +5,16 @@
 Separador de stems para **macOS con Apple Silicon** (M1/M2/M3/M4).
 Usa la GPU del Mac (PyTorch **MPS / Metal**) y **CoreML** para los modelos ONNX.
 
+![StemForge: cola de trabajos con una canción separándose y otra lista](docs/screenshots/cola.png)
+
+<p align="center"><em>Cola de trabajos: elige el modo a la izquierda y sigue el progreso de cada canción.</em></p>
+
+![StemForge: mezclador con las pistas separadas](docs/screenshots/mezclador.png)
+
+<p align="center"><em>Mezclador integrado: escucha los stems sincronizados con mute, solo y volumen por pista.</em></p>
+
+<sub>Capturas hechas con una pista de demostración sintética (batería, bajo y acordes generados + voz de texto a voz de macOS).</sub>
+
 ## Qué hace
 
 Modos ordenados **de menor a mayor calidad de separación**:
