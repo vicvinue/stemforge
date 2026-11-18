@@ -1,6 +1,6 @@
 # StemForge
 
-**Versión 0.1.0** · por [vicvinue](https://github.com/vicvinue) · Licencia MIT
+**Versión 0.2.0** · por [vicvinue](https://github.com/vicvinue) · Licencia MIT
 
 Separador de stems para **macOS con Apple Silicon** (M1/M2/M3/M4) y **Windows 10/11 (x64)**.
 En el Mac usa la GPU (PyTorch **MPS / Metal**); en Windows usa una GPU **NVIDIA (CUDA)** si la hay y, si no, la CPU.
