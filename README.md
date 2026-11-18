@@ -86,15 +86,35 @@ borrar también los modelos. Incluye su propio Python, las dependencias y ffmpeg
   sin WebView2 se abre en el navegador.
 - **GPU**: la versión normal usa la CPU (los Roformer van varias veces más lentos que en un Mac M1).
   Con `-Cuda` (PyTorch con CUDA 13) crea `StemForge-<versión>-CUDA-Setup.exe` + archivos `.bin`, que deben
-  estar en la misma carpeta al instalar. Usa la primera GPU NVIDIA: RTX 20xx a 50xx con driver de la serie 580
-  o posterior. Las GTX 10xx y anteriores no son compatibles con CUDA 13 y en ellas la app usa la CPU. Si una NVIDIA
-  no se puede usar, la interfaz lo indica y explica el motivo.
+  estar en la misma carpeta al instalar. Ver [GPU NVIDIA compatibles](#gpu-nvidia-compatibles-windows).
   AMD/Intel no se aceleran.
 - Datos y modelos: `%LOCALAPPDATA%\StemForge` · registro: `%LOCALAPPDATA%\StemForge\logs\StemForge.log`
 - CLI incluida: `stemforge.cmd cancion.mp3 -m stems4` en la carpeta de instalación.
 - No está firmado: SmartScreen avisa la primera vez (Más información → Ejecutar de todas formas).
 - El workflow `.github/workflows/windows.yml` (manual o al publicar un tag `v*`) compila, separa audio
   real en una máquina Windows, prueba el instalador y deja el `Setup.exe` como artefacto.
+
+### GPU NVIDIA compatibles (Windows)
+
+La variante CUDA (`StemForge-<versión>-CUDA-Setup.exe`) usa PyTorch con CUDA 13. Las librerías de CUDA
+vienen incluidas: **solo hace falta el driver de NVIDIA** (serie 580 o posterior), sin instalar el CUDA Toolkit.
+
+| GPU | ¿Se acelera? |
+|---|---|
+| GeForce RTX 50xx (Blackwell) | ✅ Sí |
+| GeForce RTX 40xx (Ada Lovelace) | ✅ Sí |
+| GeForce RTX 30xx (Ampere) | ✅ Sí |
+| GeForce RTX 20xx y GTX 16xx (Turing, p. ej. GTX 1650/1660) | ✅ Sí |
+| Profesionales: Quadro RTX, RTX A-series, RTX Ada, RTX PRO | ✅ Sí |
+| GeForce GTX 10xx (Pascal), GTX 9xx (Maxwell) y anteriores, Titan V | ❌ No: CUDA 13 ya no las soporta; la app usa la CPU |
+| AMD Radeon, Intel Arc / gráficos integrados | ❌ No: la app usa la CPU |
+
+- Con varias NVIDIA usa la primera. Para elegir otra, define la variable de entorno `CUDA_VISIBLE_DEVICES`
+  (p. ej. `1`) antes de abrir StemForge.
+- La interfaz indica qué está pasando: «GPU NVIDIA (CUDA) ✓» si la usa; «CPU · versión sin CUDA» si hay una
+  NVIDIA pero se instaló la variante CPU; «CPU · GPU NVIDIA no disponible» si el driver es antiguo o la GPU
+  no es compatible (pasa el ratón por encima para ver el motivo).
+- En una PC sin NVIDIA compatible conviene la variante normal (CPU): pesa ≈ 270 MB en vez de ≈ 3 GB.
 
 ## Instalación para desarrollo
 
