@@ -2,7 +2,7 @@
 
 **Versión 0.1.0** · por [vicvinue](https://github.com/vicvinue) · Licencia MIT
 
-Separador de stems para **macOS con Apple Silicon** (M1/M2/M3/M4), inspirado en Ultimate Vocal Remover.
+Separador de stems para **macOS con Apple Silicon** (M1/M2/M3/M4).
 Usa la GPU del Mac (PyTorch **MPS / Metal**) y **CoreML** para los modelos ONNX.
 
 ## Qué hace
@@ -116,7 +116,7 @@ El código de StemForge se publica bajo licencia [MIT](LICENSE).
 
 - [python-audio-separator](https://github.com/nomadkaraoke/python-audio-separator) (MIT) — motor de inferencia de modelos UVR.
 - [Demucs](https://github.com/facebookresearch/demucs) (MIT) — Meta AI.
-- [Ultimate Vocal Remover](https://github.com/Anjok07/ultimatevocalremovergui) (MIT) — inspiración y modelos MDX/VR.
+- [Ultimate Vocal Remover](https://github.com/Anjok07/ultimatevocalremovergui) (MIT) — modelos MDX/VR.
 - Pesos de modelos: BS-Roformer (viperx), MelBand Roformer (Kimberley Jensen), MelBand Big Beta 4 (unwa),
   BS-Roformer (Gabox), BS-Roformer SW (jarredou), MDX23C DrumSep (aufr33 & jarredou).
   Cada modelo tiene su propia licencia; revísalas antes de cualquier uso que no sea personal.
