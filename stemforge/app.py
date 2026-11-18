@@ -63,7 +63,7 @@ _about_target = None  # referencia fuerte: el menú no retiene su target
 
 
 def _credits():
-    """Texto del panel «Acerca de»: lo mismo que el footer (autor + GitHub) y algo de contexto."""
+    """Texto del panel «Acerca de»: lo mismo que el footer (autor + GitHub)."""
     from AppKit import (
         NSCenterTextAlignment,
         NSColor,
@@ -87,12 +87,10 @@ def _credits():
     }
     out = NSMutableAttributedString.alloc().init()
 
-    def add(text, link=None, color=None):
+    def add(text, link=None):
         attrs = dict(base)
         if link:
             attrs[NSLinkAttributeName] = NSURL.URLWithString_(link)
-        if color:
-            attrs[NSForegroundColorAttributeName] = color
         out.appendAttributedString_(NSAttributedString.alloc().initWithString_attributes_(text, attrs))
 
     add("Separador de stems para macOS con Apple Silicon.\n")
@@ -100,12 +98,6 @@ def _credits():
     add("vicvinue", AUTHOR_URL)
     add(" · ")
     add("github.com/vicvinue/stemforge", REPO_URL)
-    add("\n")
-    add(
-        "Inspirado en Ultimate Vocal Remover. Usa Demucs y BS/MelBand-Roformer "
-        "(audio-separator) en la GPU (Metal).",
-        color=NSColor.tertiaryLabelColor(),
-    )
     return out
 
 
