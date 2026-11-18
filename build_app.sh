@@ -49,8 +49,10 @@ rm -f "$SITE"/stemforge-*.dist-info/direct_url.json   # ruta del build: no se ne
 echo "==> Bytecode"
 # Todo precompilado y validado por hash (no por fecha): la app nunca necesita escribir .pyc
 # dentro del bundle, lo que rompería la firma («a sealed resource is missing or invalid»).
+# -B: el propio compileall no debe dejar .pyc por fecha de los módulos que importa al arrancar.
+# Los lanzadores usan -I -B (con -I se ignora PYTHONDONTWRITEBYTECODE).
 find "$PY" -name "__pycache__" -type d -prune -exec rm -rf {} +
-"$PY/bin/python3" -I -m compileall -q -j 0 --invalidation-mode unchecked-hash "$PY/lib" >/dev/null 2>&1 || true
+"$PY/bin/python3" -I -B -m compileall -q -f -j 0 --invalidation-mode unchecked-hash "$PY/lib" >/dev/null 2>&1 || true
 
 echo "==> Lanzadores"
 cat > "$APP/Contents/MacOS/StemForge" <<'SH'
@@ -59,17 +61,15 @@ cat > "$APP/Contents/MacOS/StemForge" <<'SH'
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 export PATH="/usr/bin:/bin:/usr/sbin:/sbin"
 export PYTHONNOUSERSITE=1
-export PYTHONDONTWRITEBYTECODE=1   # no escribir dentro del bundle firmado
 mkdir -p "$HOME/Library/Logs"
-exec "$APP_DIR/Resources/python/bin/python3" -I -m stemforge.app "$@" >> "$HOME/Library/Logs/StemForge.log" 2>&1
+exec "$APP_DIR/Resources/python/bin/python3" -I -B -m stemforge.app "$@" >> "$HOME/Library/Logs/StemForge.log" 2>&1
 SH
 cat > "$RES/stemforge" <<'SH'
 #!/bin/bash
 # CLI incluida: StemForge.app/Contents/Resources/stemforge cancion.mp3 -m stems4
 RES_DIR="$(cd "$(dirname "$0")" && pwd)"
 export PYTHONNOUSERSITE=1
-export PYTHONDONTWRITEBYTECODE=1   # no escribir dentro del bundle firmado
-exec "$RES_DIR/python/bin/python3" -I -m stemforge "$@"
+exec "$RES_DIR/python/bin/python3" -I -B -m stemforge "$@"
 SH
 chmod +x "$APP/Contents/MacOS/StemForge" "$RES/stemforge"
 cp "$ROOT/stemforge/web/StemForge.icns" "$RES/StemForge.icns"
