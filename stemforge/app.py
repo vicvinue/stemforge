@@ -33,11 +33,16 @@ def _macos_branding() -> None:
         from Foundation import NSBundle
     except Exception:
         return
+    from . import __version__
+
     try:
         info = NSBundle.mainBundle().localizedInfoDictionary() or NSBundle.mainBundle().infoDictionary()
         if info is not None:
             info["CFBundleName"] = "StemForge"
             info["CFBundleDisplayName"] = "StemForge"
+            info["CFBundleShortVersionString"] = __version__
+            info["CFBundleVersion"] = __version__
+            info["NSHumanReadableCopyright"] = COPYRIGHT
     except Exception:
         pass
     icon = _find_icon()
@@ -48,6 +53,110 @@ def _macos_branding() -> None:
                 NSApplication.sharedApplication().setApplicationIconImage_(image)
         except Exception:
             pass
+
+
+AUTHOR_URL = "https://github.com/vicvinue"
+REPO_URL = "https://github.com/vicvinue/stemforge"
+COPYRIGHT = "© 2026 vicvinue · Licencia MIT"
+
+_about_target = None  # referencia fuerte: el menú no retiene su target
+
+
+def _credits():
+    """Texto del panel «Acerca de»: lo mismo que el footer (autor + GitHub) y algo de contexto."""
+    from AppKit import (
+        NSCenterTextAlignment,
+        NSColor,
+        NSFont,
+        NSFontAttributeName,
+        NSForegroundColorAttributeName,
+        NSLinkAttributeName,
+        NSMutableAttributedString,
+        NSMutableParagraphStyle,
+        NSParagraphStyleAttributeName,
+    )
+    from Foundation import NSAttributedString, NSURL
+
+    para = NSMutableParagraphStyle.alloc().init()
+    para.setAlignment_(NSCenterTextAlignment)
+    para.setParagraphSpacing_(4)
+    base = {
+        NSFontAttributeName: NSFont.systemFontOfSize_(11),
+        NSForegroundColorAttributeName: NSColor.secondaryLabelColor(),
+        NSParagraphStyleAttributeName: para,
+    }
+    out = NSMutableAttributedString.alloc().init()
+
+    def add(text, link=None, color=None):
+        attrs = dict(base)
+        if link:
+            attrs[NSLinkAttributeName] = NSURL.URLWithString_(link)
+        if color:
+            attrs[NSForegroundColorAttributeName] = color
+        out.appendAttributedString_(NSAttributedString.alloc().initWithString_attributes_(text, attrs))
+
+    add("Separador de stems para macOS con Apple Silicon.\n")
+    add("Por ")
+    add("vicvinue", AUTHOR_URL)
+    add(" · ")
+    add("github.com/vicvinue/stemforge", REPO_URL)
+    add("\n")
+    add(
+        "Inspirado en Ultimate Vocal Remover. Usa Demucs y BS/MelBand-Roformer "
+        "(audio-separator) en la GPU (Metal).",
+        color=NSColor.tertiaryLabelColor(),
+    )
+    return out
+
+
+def _install_about_panel() -> None:
+    """Reemplaza el «Acerca de StemForge» de pywebview por un panel con versión, autor y enlaces.
+
+    Se llama en el hilo principal una vez que pywebview creó el menú.
+    """
+    global _about_target
+    try:
+        import objc
+        from AppKit import NSApplication, NSImage
+        from Foundation import NSObject
+
+        from . import __version__
+    except Exception:
+        return
+
+    class _AboutTarget(NSObject):
+        @objc.typedSelector(b"v@:@")
+        def showAbout_(self, sender):
+            app = NSApplication.sharedApplication()
+            opts = {
+                "ApplicationName": "StemForge",
+                "ApplicationVersion": __version__,
+                "Version": "",  # vacío: sin «(0.1.0)» repetido
+                "Copyright": COPYRIGHT,
+                "Credits": _credits(),
+            }
+            icon = _find_icon()
+            if icon:
+                image = NSImage.alloc().initWithContentsOfFile_(str(icon))
+                if image is not None:
+                    opts["ApplicationIcon"] = image
+            app.activateIgnoringOtherApps_(True)
+            app.orderFrontStandardAboutPanelWithOptions_(opts)
+
+    try:
+        menu = NSApplication.sharedApplication().mainMenu()
+        app_menu = menu.itemAtIndex_(0).submenu() if menu and menu.numberOfItems() else None
+        if app_menu is None:
+            return
+        for i in range(app_menu.numberOfItems()):
+            item = app_menu.itemAtIndex_(i)
+            if item.action() == "orderFrontStandardAboutPanel:":
+                _about_target = _AboutTarget.alloc().init()
+                item.setTarget_(_about_target)
+                item.setAction_("showAbout:")
+                break
+    except Exception as exc:
+        print(f"No se pudo personalizar «Acerca de»: {exc}")
 
 
 def _find_icon():
@@ -91,7 +200,17 @@ def main(argv: list[str] | None = None) -> int:
             except Exception:
                 pass
             _macos_branding()
-            webview.create_window("StemForge", url, width=1180, height=820, min_size=(860, 600))
+            window = webview.create_window("StemForge", url, width=1180, height=820, min_size=(860, 600))
+
+            def _on_shown():
+                try:
+                    from PyObjCTools import AppHelper
+
+                    AppHelper.callAfter(_install_about_panel)
+                except Exception:
+                    pass
+
+            window.events.shown += _on_shown
             webview.start()
             server.should_exit = True
             return 0
