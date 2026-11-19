@@ -10,7 +10,7 @@
   --accent:#7c5cff; --accent2:#22d3a6; --warn:#f5a524; --err:#f04d5d; --radius:14px;
   --vocals:#ff6b9a; --instrumental:#7c5cff; --drums:#f5a524; --bass:#22d3a6; --guitar:#ff8a3d;
   --piano:#4fb3ff; --other:#a98bff; --kick:#f5c542; --snare:#ffb44a; --toms:#e8913a; --hihat:#d9e36b;
-  --ride:#9be36b; --crash:#e3d16b; --mezcla:#ffffff;
+  --ride:#9be36b; --crash:#e3d16b; --mezcla:#ffffff; --metronome:#8a90a0;
 }
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
@@ -30,6 +30,12 @@ main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(330px,420px) 
 .left-scroll{flex:1;min-height:0;overflow-y:auto;padding:18px;overscroll-behavior:contain}
 .col-right{min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-right:2px}
 .col-right>.card+.card{margin-top:20px}
+.open-card{display:flex;align-items:center;gap:14px;padding:14px 18px}
+.open-card svg{width:30px;height:30px;flex:none}
+.open-card .txt{flex:1;min-width:0}
+.open-card .txt b{display:block;font-size:14px}
+.open-card .txt small{color:var(--muted);font-size:12.3px}
+.open-card .btn:disabled{opacity:.5;cursor:default}
 .queue-head{position:sticky;top:0;z-index:3;display:flex;align-items:center;justify-content:space-between;
   margin:-18px -18px 0;padding:18px 18px 12px;background:var(--panel);border-radius:var(--radius) var(--radius) 0 0}
 .left-scroll,.col-right{scrollbar-width:thin;scrollbar-color:#343846 transparent}
@@ -166,6 +172,20 @@ input[type=range]{accent-color:var(--accent);cursor:pointer}
 .wave .ph{position:absolute;top:0;bottom:0;width:1.5px;background:#fff;opacity:.85;pointer-events:none}
 .track input[type=range]{width:100%}
 .loading{color:var(--muted);font-size:12.5px;padding:10px 0}
+.mix-tools{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center;margin:0 0 10px;padding:8px 0 10px;border-top:1px solid var(--line)}
+.mix-tools:empty{display:none}
+.mix-tools .tool{display:flex;align-items:center;gap:7px}
+.mix-tools .tl{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-right:2px}
+.mix-tools .val{font-size:13.5px;min-width:56px}
+.mix-tools .val b{font-size:15px}
+.mix-tools .semi{min-width:104px;text-align:center}
+.mix-tools .semi.on{color:var(--accent2);font-weight:600}
+.mix-tools .btn.step{width:30px;height:28px;padding:0;display:inline-grid;place-items:center;font-size:16px;font-weight:700;line-height:1}
+.mix-tools .btn:disabled{opacity:.35;cursor:default}
+.mix-tools .muted{color:var(--muted);font-size:12.5px}
+.mix-tools .spin{animation:pulse 1s ease-in-out infinite alternate}
+@keyframes pulse{from{opacity:.4}to{opacity:1}}
+.track.metro .name{color:#c9cdd8}
 footer{flex:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 24px;
   border-top:1px solid var(--line);color:var(--muted);font-size:12px;background:var(--bg)}
 footer a{color:var(--text);text-decoration:none;display:inline-flex;align-items:center;gap:6px}
@@ -270,6 +290,12 @@ footer label.auto input{accent-color:var(--accent);margin:0}
   </section>
 
   <section class="col-right">
+    <div class="card open-card">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#7c5cff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M10 11v5M13 10v6M16 12v3"/></svg>
+      <div class="txt"><b>Abrir pistas ya extraídas</b><small>Carga en el mezclador una carpeta de una sesión anterior: todas sus pistas, con BPM, metrónomo y cambio de tono.</small></div>
+      <button class="btn small primary" id="openFolder">Abrir carpeta…</button>
+    </div>
+
     <div class="card">
       <div class="queue-head">
         <h2 style="margin:0">Cola de trabajos</h2>
@@ -281,6 +307,7 @@ footer label.auto input{accent-color:var(--accent);margin:0}
     <div class="card" id="mixer">
       <div class="mix-head">
         <div class="title" id="mixTitle">Mezclador</div>
+        <button class="btn small" id="mixReveal" title="Abrir la carpeta de estas pistas">Carpeta</button>
         <button class="btn small" id="mixReset">Restablecer</button>
         <button class="btn small" id="mixClose">Cerrar</button>
       </div>
@@ -289,6 +316,7 @@ footer label.auto input{accent-color:var(--accent);margin:0}
         <span class="time" id="time">0:00 / 0:00</span>
         <input type="range" id="seek" min="0" max="1000" value="0">
       </div>
+      <div class="mix-tools" id="mixTools"></div>
       <div id="tracks"></div>
     </div>
   </section>
@@ -311,6 +339,8 @@ const TOKEN = "__STEMFORGE_TOKEN__";
 const $ = s => document.querySelector(s);
 const STEM_COLORS = k => getComputedStyle(document.documentElement).getPropertyValue('--' + k).trim() || '#888';
 const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>';
+const ICON_MINUS = '<svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+const ICON_PLUS = '<svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6h8M6 2v8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 const ICON_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>';
 
 let state = { modes: [], tiers: [], staged: [], labels: {}, drumParts: [], selAll: true, sel: new Set(), mixSel: false, settings: {}, mode: "stems4", quality: "balanced", format: "wav", drumsep: false };
@@ -592,7 +622,7 @@ function renderJobs() {
     return `<div class="job">
       <div class="job-top">
         <div style="flex:1;min-width:0"><div class="job-title" title="${esc(j.filename)}">${esc(j.filename)}</div>
-        <div class="job-meta">${esc(modeName)}${j.drumsep ? " + batería por piezas" : ""}${j.selected ? " · " + esc(j.selected.join(", ")) : ""}${j.mix_selection ? " + mezcla" : ""} · ${j.quality === "max" ? "Máxima" : "Equilibrada"} · ${fmt}${j.started ? " · " + fmtTime(j.elapsed) : ""}</div></div>
+        <div class="job-meta">${esc(modeName)}${j.drumsep ? " + batería por piezas" : ""}${j.selected ? " · " + esc(j.selected.join(", ")) : ""}${j.mix_selection ? " + mezcla" : ""} · ${j.quality === "max" ? "Máxima" : "Equilibrada"} · ${fmt}${j.bpm ? " · " + Math.round(j.bpm) + " BPM" : ""}${j.started ? " · " + fmtTime(j.elapsed) : ""}</div></div>
         <span class="status ${j.status}">${STATUS_TXT[j.status]}</span>
       </div>
       ${live ? `<div class="bar ${j.downloading ? "dl" : ""}"><i style="width:${j.status === "queued" ? 0 : pct}%"></i></div>
@@ -616,7 +646,7 @@ $("#jobs").onclick = async e => {
   if (act === "cancel") await api(`/api/jobs/${id}/cancel`, { method: "POST" });
   if (act === "remove") { await api(`/api/jobs/${id}`, { method: "DELETE" }); if (mixer.jobId === id) closeMixer(); }
   if (act === "reveal") await api(`/api/jobs/${id}/reveal`, { method: "POST" });
-  if (act === "mix") openMixer(jobs.find(j => j.id === id));
+  if (act === "mix") openJobMixer(jobs.find(j => j.id === id));
   refreshJobs();
 };
 $("#clearDone").onclick = async () => {
@@ -625,35 +655,190 @@ $("#clearDone").onclick = async () => {
 };
 
 // ------------------------------------------------------------------ mezclador (Web Audio, sincronía exacta)
-const mixer = { ctx: null, jobId: null, tracks: [], playing: false, startAt: 0, offset: 0, duration: 0, raf: 0, loadToken: 0 };
+// Una «sesión» son las pistas de un trabajo terminado o de una carpeta abierta (una a la vez).
+const mixer = { ctx: null, session: null, jobId: null, tracks: [], playing: false, startAt: 0, offset: 0, duration: 0, raf: 0,
+                loadToken: 0, semitones: 0, pitchToken: 0, pitchTimer: 0, bpmFactor: 1, beats: [], bpm: null, tempoTimer: 0 };
+const MAX_SEMI = 5, METRO_KEY = "metronome";
+const DRUM_PARTS = ["kick", "snare", "toms", "hihat", "ride", "crash"], INSTR = ["drums", "bass", "guitar", "piano", "other", ...DRUM_PARTS];
+const EXTRA_COLORS = ["#ff9f6b", "#6bd4ff", "#c38bff", "#7be08a", "#ffd36b", "#ff7bc8", "#6b8cff", "#b5e06b"];
 function audioCtx() { if (!mixer.ctx) mixer.ctx = new (window.AudioContext || window.webkitAudioContext)(); return mixer.ctx; }
+function trackColor(key) {
+  const base = key.startsWith("x-") ? "" : key.split("-")[0];
+  const css = base && getComputedStyle(document.documentElement).getPropertyValue("--" + base).trim();
+  if (css) return css;
+  let h = 0; for (const c of key) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return EXTRA_COLORS[h % EXTRA_COLORS.length];
+}
+function baseKey(k) { return k.startsWith("x-") ? k : k.split("-")[0]; }
+// Por defecto no suena lo que duplicaría otras pistas, ni el metrónomo
+function defaultMuted(k, keys) {
+  const b = baseKey(k), bases = keys.map(baseKey);
+  if (b === METRO_KEY || b === "mezcla") return true;
+  if (b === "instrumental") return bases.some(x => INSTR.includes(x));
+  if (DRUM_PARTS.includes(b)) return bases.includes("drums");
+  return false;
+}
+const trackUrl = (key, semi) => `/api/sessions/${mixer.session.id}/tracks/${encodeURIComponent(key)}?semitones=${semi}`;
+async function fetchBuffer(key, semi) { const res = await api(trackUrl(key, semi)); return audioCtx().decodeAudioData(await res.arrayBuffer()); }
 
-async function openMixer(job) {
-  stopPlayback(); mixer.jobId = job.id; mixer.tracks = []; mixer.offset = 0; mixer.duration = 0;
+async function openSession(session, jobId = null) {
+  stopPlayback(); clearTimeout(mixer.tempoTimer); clearTimeout(mixer.pitchTimer);
+  Object.assign(mixer, { session, jobId, tracks: [], offset: 0, duration: 0, semitones: 0, bpmFactor: 1, beats: [], bpm: null });
+  mixer.pitchToken++;
   const token = ++mixer.loadToken;
-  $("#mixer").classList.add("open"); $("#mixTitle").textContent = job.filename;
-  $("#tracks").innerHTML = `<div class="loading">Cargando ${job.stems.length} pistas…</div>`;
+  $("#mixer").classList.add("open"); $("#mixTitle").textContent = session.title; $("#mixTitle").title = session.folder;
+  $("#tracks").innerHTML = `<div class="loading">Cargando ${session.tracks.length} pista(s)…</div>`;
+  renderMixTools();
   $("#mixer").scrollIntoView({ behavior: "smooth", block: "start" });
-  const ctx = audioCtx();
-  // Por defecto no se reproduce "Instrumental" (duplicaría el resto de stems)
-  const defaultMuted = k => k === "instrumental" || k === "mezcla" || (job.stems.some(s => s.key === "drums") && ["kick", "snare", "toms", "hihat", "ride", "crash"].includes(k));
+  if (session.skipped?.length) toast(`Se cargan ${session.tracks.length} pistas; ${session.skipped.length} quedaron fuera (máximo alcanzado)`);
+  const ctx = audioCtx(), keys = session.tracks.map(t => t.key);
   try {
-    const loaded = await Promise.all(job.stems.map(async s => {
-      const res = await api(`/api/jobs/${job.id}/stems/${s.key}`);
-      const buf = await ctx.decodeAudioData(await res.arrayBuffer());
-      const gain = ctx.createGain();
-      gain.connect(ctx.destination);
-      return { ...s, buffer: buf, gain, volume: 1, mute: defaultMuted(s.key), solo: false, src: null, peaks: peaks(buf, 600) };
+    const loaded = await Promise.all(session.tracks.map(async s => {
+      const buf = await fetchBuffer(s.key, 0);
+      const gain = ctx.createGain(); gain.connect(ctx.destination);
+      return { ...s, buffer: buf, original: buf, gain, volume: 1, mute: defaultMuted(s.key, keys), solo: false, src: null, peaks: peaks(buf, 600) };
     }));
     if (token !== mixer.loadToken) return;
     mixer.tracks = loaded;
     mixer.duration = Math.max(...loaded.map(t => t.buffer.duration));
+    applyTempo({ bpm: session.bpm, beats: null, state: session.tempo_state });
     renderTracks(); applyGains(); updateTime();
-  } catch (e) { $("#tracks").innerHTML = `<div class="err">No se pudo cargar el audio: ${esc(e.message)}</div>`; }
+    pollTempo(token);
+  } catch (e) { if (token === mixer.loadToken) $("#tracks").innerHTML = `<div class="err">No se pudo cargar el audio: ${esc(e.message)}</div>`; }
 }
-function closeMixer() { stopPlayback(); mixer.loadToken++; mixer.tracks = []; mixer.jobId = null; $("#mixer").classList.remove("open"); }
+async function openJobMixer(job) {
+  try { openSession(await api(`/api/jobs/${job.id}/session`, { method: "POST" }), job.id); }
+  catch (e) { toast("Error: " + e.message); }
+}
+async function openFolder() {
+  const btn = $("#openFolder"); btn.disabled = true;
+  try {
+    const s = await api("/api/sessions/open-folder", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+    if (!s.cancelled) openSession(s);
+  } catch (e) { toast("Error: " + e.message); }
+  finally { btn.disabled = false; }
+}
+$("#openFolder").onclick = openFolder;
+function closeMixer() {
+  stopPlayback(); mixer.loadToken++; mixer.pitchToken++; clearTimeout(mixer.tempoTimer); clearTimeout(mixer.pitchTimer);
+  mixer.tracks = []; mixer.jobId = null; mixer.session = null; $("#mixer").classList.remove("open");
+}
 $("#mixClose").onclick = closeMixer;
-$("#mixReset").onclick = () => { const job = jobs.find(j => j.id === mixer.jobId); mixer.tracks.forEach(t => { t.volume = 1; t.solo = false; t.mute = t.key === "instrumental" || t.key === "mezcla" || (job?.stems.some(s => s.key === "drums") && ["kick","snare","toms","hihat","ride","crash"].includes(t.key)); }); renderTracks(); applyGains(); };
+$("#mixReveal").onclick = () => mixer.session && api(`/api/sessions/${mixer.session.id}/reveal`, { method: "POST" }).catch(e => toast(e.message));
+$("#mixReset").onclick = () => {
+  const keys = mixer.tracks.map(t => t.key);
+  mixer.tracks.forEach(t => { t.volume = 1; t.solo = false; t.mute = defaultMuted(t.key, keys); });
+  renderTracks(); applyGains();
+  if (mixer.bpmFactor !== 1) setBpmFactor(1);
+  if (mixer.semitones !== 0) setSemitones(0);
+};
+
+// ---- tempo y metrónomo
+async function pollTempo(token) {
+  if (token !== mixer.loadToken || !mixer.session) return;
+  let t;
+  try { t = await api(`/api/sessions/${mixer.session.id}/tempo`); } catch { return; }
+  if (token !== mixer.loadToken) return;
+  applyTempo(t);
+  if (t.state === "pending" || t.state === "running") mixer.tempoTimer = setTimeout(() => pollTempo(token), 1500);
+}
+function applyTempo(t) {
+  mixer.tempoState = t.state;
+  if (t.beats) { mixer.bpm = t.bpm; mixer.beats = t.beats; rebuildMetronome(); }
+  else mixer.bpm = t.bpm;
+  renderMixTools();
+}
+// ×2: se agrega un pulso entre cada par · ÷2: uno de cada dos
+function scaledBeats() {
+  const b = mixer.beats;
+  if (mixer.bpmFactor === 2) { const out = []; for (let i = 0; i < b.length; i++) { out.push(b[i]); out.push(i + 1 < b.length ? (b[i] + b[i + 1]) / 2 : b[i] + (b[i] - (b[i - 1] ?? b[i])) / 2); } return out; }
+  if (mixer.bpmFactor === 0.5) return b.filter((_, i) => i % 2 === 0);
+  return b;
+}
+function metronomeBuffer(times, duration) {
+  const ctx = audioCtx(), sr = ctx.sampleRate, len = Math.max(1, Math.ceil(duration * sr));
+  const buf = ctx.createBuffer(1, len, sr), data = buf.getChannelData(0), n = Math.round(0.04 * sr);
+  for (const t of times) {
+    const start = Math.round(t * sr); if (start < 0 || start >= len) continue;
+    for (let i = 0; i < n && start + i < len; i++) { const x = i / sr; data[start + i] += 0.55 * Math.sin(2 * Math.PI * 1760 * x) * Math.exp(-x / 0.007); }
+  }
+  return buf;
+}
+function rebuildMetronome() {
+  if (!mixer.tracks.length) return;
+  const idx = mixer.tracks.findIndex(t => t.key === METRO_KEY);
+  if (!mixer.beats.length) { if (idx >= 0) { replaceBuffers(() => mixer.tracks.splice(idx, 1)); renderTracks(); } return; }
+  const buf = metronomeBuffer(scaledBeats(), mixer.duration);
+  if (idx >= 0) replaceBuffers(() => { const t = mixer.tracks[idx]; t.buffer = t.original = buf; t.peaks = peaks(buf, 600); });
+  else {
+    const gain = audioCtx().createGain(); gain.connect(audioCtx().destination);
+    replaceBuffers(() => mixer.tracks.push({ key: METRO_KEY, label: "Metrónomo", pitched: false, buffer: buf, original: buf, gain, volume: 0.8,
+      mute: true, solo: false, src: null, peaks: peaks(buf, 600), metro: true }));
+  }
+  renderTracks(); applyGains();
+}
+function setBpmFactor(f) { mixer.bpmFactor = f; rebuildMetronome(); renderMixTools(); }
+
+// ---- transposición (las pistas con tono; batería y metrónomo no cambian)
+function setSemitones(n) {
+  n = Math.max(-MAX_SEMI, Math.min(MAX_SEMI, n));
+  if (n === mixer.semitones && !mixer.pitchLoading) return;
+  mixer.semitones = n; renderMixTools();
+  clearTimeout(mixer.pitchTimer);
+  mixer.pitchTimer = setTimeout(() => loadPitch(n), 350);    // si se pulsa varias veces seguidas, se procesa una sola
+}
+async function loadPitch(n) {
+  const token = ++mixer.pitchToken, session = mixer.session;
+  const targets = mixer.tracks.filter(t => t.pitched);
+  if (!targets.length) return;
+  mixer.pitchLoading = true; renderMixTools();
+  try {
+    const bufs = await Promise.all(targets.map(t => n === 0 ? t.original : fetchBuffer(t.key, n)));
+    if (token !== mixer.pitchToken || session !== mixer.session) return;
+    replaceBuffers(() => targets.forEach((t, i) => { t.buffer = bufs[i]; }));
+  } catch (e) {
+    if (token === mixer.pitchToken) toast("No se pudo transponer: " + e.message);
+  } finally {
+    if (token === mixer.pitchToken) { mixer.pitchLoading = false; renderMixTools(); }
+  }
+}
+// Cambia buffers sin perder la posición (si estaba sonando, sigue desde el mismo punto)
+function replaceBuffers(fn) {
+  const was = mixer.playing, at = position();
+  if (was) stopPlayback();
+  fn();
+  mixer.offset = at;
+  if (was) startPlayback(at);
+}
+function renderMixTools() {
+  const el = $("#mixTools"); if (!mixer.session) { el.innerHTML = ""; return; }
+  const st = mixer.tempoState, bpm = mixer.bpm ? Math.round(mixer.bpm * mixer.bpmFactor) : null;
+  const bpmTxt = bpm ? `<b>${bpm}</b> BPM` : (st === "pending" || st === "running") ? '<span class="muted">calculando…</span>' : '<span class="muted">sin pulso claro</span>';
+  const canFactor = !!mixer.beats.length;
+  const semi = mixer.semitones, pitched = mixer.tracks.some(t => t.pitched) || !mixer.tracks.length;
+  const semiTxt = semi === 0 ? "Original" : `${semi > 0 ? "+" : "−"}${Math.abs(semi)} semitono${Math.abs(semi) > 1 ? "s" : ""}`;
+  el.innerHTML = `
+    <div class="tool" title="Tempo detectado. Si sale al doble o a la mitad, corrígelo con ÷2 / ×2 (también ajusta el metrónomo).">
+      <span class="tl">Tempo</span><span class="val">${bpmTxt}</span>
+      <button class="btn small" data-tool="half" ${canFactor && mixer.bpmFactor !== 0.5 ? "" : "disabled"}>÷2</button>
+      <button class="btn small" data-tool="double" ${canFactor && mixer.bpmFactor !== 2 ? "" : "disabled"}>×2</button>
+    </div>
+    <div class="tool" title="Cambia el tono sin cambiar la velocidad (máx. ±${MAX_SEMI}). La batería no se transpone.">
+      <span class="tl">Tono</span>
+      <button class="btn small step" data-tool="down" ${pitched && semi > -MAX_SEMI ? "" : "disabled"} title="Bajar un semitono">${ICON_MINUS}</button>
+      <span class="val semi ${semi ? "on" : ""}">${semiTxt}</span>
+      <button class="btn small step" data-tool="up" ${pitched && semi < MAX_SEMI ? "" : "disabled"} title="Subir un semitono">${ICON_PLUS}</button>
+      ${mixer.pitchLoading ? '<span class="muted spin">transponiendo…</span>' : ""}
+    </div>`;
+}
+$("#mixTools").onclick = e => {
+  const b = e.target.closest("[data-tool]"); if (!b || b.disabled) return;
+  const t = b.dataset.tool;
+  if (t === "up") setSemitones(mixer.semitones + 1);
+  if (t === "down") setSemitones(mixer.semitones - 1);
+  if (t === "double") setBpmFactor(mixer.bpmFactor === 0.5 ? 1 : 2);
+  if (t === "half") setBpmFactor(mixer.bpmFactor === 2 ? 1 : 0.5);
+};
 
 function peaks(buf, n) {
   const ch = buf.getChannelData(0), ch2 = buf.numberOfChannels > 1 ? buf.getChannelData(1) : ch;
@@ -671,8 +856,8 @@ function drawWave(canvas, data, color, dim) {
 }
 function renderTracks() {
   $("#tracks").innerHTML = mixer.tracks.map((t, i) => `
-    <div class="track" data-i="${i}">
-      <div class="name"><i class="dot" style="background:${STEM_COLORS(t.key)}"></i>${esc(t.label)}</div>
+    <div class="track ${t.metro ? "metro" : ""}" data-i="${i}">
+      <div class="name" title="${esc(t.file || t.label)}"><i class="dot" style="background:${trackColor(t.key)}"></i>${esc(t.label)}</div>
       <div class="ms"><button class="m ${t.mute ? "on" : ""}" title="Silenciar">M</button><button class="s ${t.solo ? "on" : ""}" title="Solo">S</button></div>
       <div class="wave"><canvas></canvas><div class="ph"></div></div>
       <input type="range" min="0" max="150" value="${Math.round(t.volume * 100)}" title="Volumen">
@@ -684,10 +869,10 @@ function renderTracks() {
     row.querySelector("input").oninput = e => { t.volume = e.target.value / 100; applyGains(); };
     row.querySelector(".wave").onclick = e => { const r = e.currentTarget.getBoundingClientRect(); seekTo((e.clientX - r.left) / r.width * mixer.duration); };
   });
-  redrawWaves(); updateTime();
+  redrawWaves(); updateTime(); renderMixTools();
 }
 function audible(t) { const anySolo = mixer.tracks.some(x => x.solo); return anySolo ? t.solo : !t.mute; }
-function redrawWaves() { document.querySelectorAll(".track").forEach(row => { const t = mixer.tracks[+row.dataset.i]; drawWave(row.querySelector("canvas"), t.peaks, STEM_COLORS(t.key), !audible(t)); }); }
+function redrawWaves() { document.querySelectorAll(".track").forEach(row => { const t = mixer.tracks[+row.dataset.i]; drawWave(row.querySelector("canvas"), t.peaks, trackColor(t.key), !audible(t)); }); }
 function applyGains() {
   const now = audioCtx().currentTime;
   mixer.tracks.forEach(t => t.gain.gain.setTargetAtTime(audible(t) ? t.volume : 0, now, 0.015));
@@ -725,7 +910,7 @@ window.addEventListener("resize", () => mixer.tracks.length && redrawWaves());
 init().then(() => {
   // Enlace directo al mezclador: #mix=<id de trabajo>
   const m = location.hash.match(/^#mix=(\w+)$/); const j = m && jobs.find(x => x.id === m[1]);
-  if (j && j.status === "done") openMixer(j);
+  if (j && j.status === "done") openJobMixer(j);
 }).catch(e => toast("Error iniciando: " + e.message));
 </script>
 </body>

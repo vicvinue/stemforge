@@ -5,7 +5,7 @@ IMPORTANTE: este archivo debe seguir siendo mínimo y estable. Las actualizacion
 la instalación: lo que se agregue aquí no llegará por una actualización pequeña.
 """
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 # Versión del «runtime» (Python + dependencias). Súbela cuando cambien las dependencias de
 # pyproject.toml o la versión de Python: las instalaciones con otro RUNTIME no pueden recibir

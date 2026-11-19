@@ -44,6 +44,15 @@ Opcional en todos los modos con batería: **dividir la batería** en Bombo, Caja
 - **Calidad**: *Equilibrada* (solapamiento ≤ 2 en Roformer, 1 shift en Demucs; nunca más lento que el ajuste del modelo) o *Máxima* (solapamiento ≥ 4 y 2 shifts: ≈ 2× más lenta).
 - **Formatos**: WAV 24-bit, FLAC 24-bit, MP3 (320k por defecto). Internamente todo se procesa en float32 44,1 kHz.
 - **Mezclador** integrado: escucha los stems sincronizados, con mute/solo/volumen y forma de onda.
+  - **Abrir pistas ya extraídas**: «Abrir carpeta…» carga en el mezclador una carpeta de una sesión anterior
+    (todas sus pistas de audio, una carpeta a la vez). Usa el `stemforge.json` si existe; si no, reconoce las
+    pistas por su nombre (`Canción - Voz.wav`). Si la misma pista está en varios formatos, carga una sola.
+  - **Tempo (BPM)**: se detecta al extraer (y se guarda en `stemforge.json`) o al abrir una carpeta antigua.
+    Si sale al doble o a la mitad, se corrige con ÷2 / ×2.
+  - **Metrónomo**: una pista más del mezclador (silenciada al abrir) con un clic en cada pulso detectado,
+    así que sigue las variaciones de tempo de la canción.
+  - **Tono**: transpone de −5 a +5 semitonos sin cambiar la velocidad (ffmpeg). La batería y el metrónomo no
+    se transponen.
 - **Qué extraer**: «Todo» o solo los stems que elijas (p. ej. solo Voz y Bajo, o solo Bombo y Caja). Solo se ejecutan los modelos necesarios: pedir solo la Voz en «4 Stems · Alta calidad» no ejecuta Demucs.
 - **Mezclar la selección**: además de cada pista por separado, un archivo extra con las pistas elegidas
   sumadas, p. ej. `Canción - Mezcla (Voz + Bajo).wav`. No suma dos veces el mismo sonido (si eliges
@@ -52,7 +61,7 @@ Opcional en todos los modos con batería: **dividir la batería** en Bombo, Caja
 - **Cola**: arrastra varias canciones; se procesan de a una (la GPU no se comparte).
 
 Los archivos se guardan en `~/Music/StemForge/<Canción> [<Modo>]/<Canción> - <Stem>.wav` (en Windows,
-`Música\StemForge\…`) junto a un `stemforge.json` con los modelos y ajustes usados.
+`Música\StemForge\…`) junto a un `stemforge.json` con los modelos y ajustes usados, el BPM y los pulsos.
 
 ## App autónoma para macOS (recomendado)
 
@@ -193,6 +202,8 @@ stemforge/
   presets.py   modos = cadenas de pasos (modelo, entrada, mapeo de stems)
   engine.py    ejecuta los pasos con audio-separator, suma residuos, exporta con ffmpeg
   jobs.py      cola con un hilo trabajador, progreso y cancelación
+  sessions.py  sesiones del mezclador: pistas de un trabajo o de una carpeta abierta, caché transpuesta
+  analysis.py  tempo (librosa: BPM + pulsos) y transposición (ffmpeg asetrate + atempo)
   server.py    API FastAPI solo en 127.0.0.1 (token por sesión + control de Host)
   app.py       ventana nativa (pywebview: WebKit en Mac, WebView2 en Windows) o navegador
   osutil.py    diferencias entre sistemas: carpetas de datos, abrir carpeta, selector de carpetas

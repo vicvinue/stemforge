@@ -256,7 +256,7 @@ def test_concurrent_checks_do_not_clobber_download(tmp_path, monkeypatch):
     def slow_fetch():
         calls.append(1)
         release.wait(5)
-        return dict(MANIFEST)
+        return dict(MANIFEST, version="99.0.0")     # siempre más nueva que la versión del paquete
 
     monkeypatch.setattr(updater, "fetch_manifest", slow_fetch)
     up = updater.Updater()

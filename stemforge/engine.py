@@ -99,6 +99,8 @@ class SeparationResult:
     seconds: float = 0.0
     warnings: list[str] = field(default_factory=list)
     labels: dict[str, str] = field(default_factory=dict)   # clave -> etiqueta visible
+    bpm: float | None = None                                 # tempo detectado en la canción original
+    beats: list[float] = field(default_factory=list)         # pulsos (s), para el metrónomo
 
 
 ProgressFn = Callable[[Progress], None]
@@ -306,7 +308,9 @@ class Engine:
             duration = decode_to_wav(req.input_path, mix)
             say(f"Duración: {int(duration // 60)}:{int(duration % 60):02d}")
             stems: dict[str, Path] = {"mix": mix}
+            progress.step_label = "Analizando tempo"
             emit()
+            tempo = self._analyze_tempo(mix, say, warnings)
 
             for i, step in enumerate(steps):
                 check_cancel()
@@ -368,16 +372,31 @@ class Engine:
                 "format": req.output_format, "quality": req.quality, "seconds": round(elapsed, 1),
                 "stems": {k: p.name for k, p in final.items()},
                 "selection_mix": mix_info,
+                "bpm": tempo["bpm"], "beats": tempo["beats"],
             }, indent=2, ensure_ascii=False), encoding="utf-8")
             progress.step_fraction = 1.0
             emit()
             say(f"✅ Listo en {elapsed:.0f} s → {out_folder}")
-            return SeparationResult(out_folder, final, mode.key, elapsed, warnings, labels)
+            return SeparationResult(out_folder, final, mode.key, elapsed, warnings, labels,
+                                    tempo["bpm"], tempo["beats"])
         finally:
             _progress_cb = None
             if not req.keep_workdir:
                 shutil.rmtree(workdir, ignore_errors=True)
             _free_memory()
+
+    @staticmethod
+    def _analyze_tempo(mix: Path, say, warnings: list[str]) -> dict:
+        """BPM y pulsos de la canción original. Si falla, la separación sigue igual."""
+        from . import analysis
+
+        try:
+            tempo = analysis.analyze_tempo([mix])
+        except Exception as exc:  # noqa: BLE001
+            warnings.append(f"No se pudo detectar el tempo: {exc}")
+            return {"bpm": None, "beats": []}
+        say(f"Tempo: {round(tempo['bpm'])} BPM" if tempo["bpm"] else "Tempo: no se detectó un pulso claro")
+        return tempo
 
     def _run_step(self, step: Step, stems, step_dir: Path, progress: Progress, emit, say, cancel,
                   quality: str = "balanced", warnings: list[str] | None = None) -> tuple[dict[str, Path], list[str]]:

@@ -16,6 +16,10 @@ WORK_DIR = SUPPORT_DIR / "work"
 SETTINGS_FILE = SUPPORT_DIR / "settings.json"
 DEFAULT_OUTPUT_DIR = osutil.music_dir() / APP_NAME
 
+# librosa compila funciones con numba y guarda la caché junto a su código: dentro de StemForge.app
+# eso rompería la firma (igual que los .pyc). Se manda a la carpeta de datos, antes de importar numba.
+os.environ.setdefault("NUMBA_CACHE_DIR", str(SUPPORT_DIR / "numba-cache"))
+
 AUDIO_EXTENSIONS = {".wav", ".mp3", ".flac", ".m4a", ".aac", ".ogg", ".aiff", ".aif", ".wma", ".opus", ".mp4"}
 OUTPUT_FORMATS = ("wav", "flac", "mp3")
 

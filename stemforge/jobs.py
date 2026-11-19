@@ -33,6 +33,8 @@ class Job:
     finished: float | None = None
     cancel: threading.Event = field(default_factory=threading.Event)
     upload_dir: Path | None = None   # carpeta temporal a borrar al terminar
+    bpm: float | None = None
+    beats: list[float] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         req = self.request
@@ -46,7 +48,7 @@ class Job:
             "drumsep": req.drumsep,
             "selected": [STEM_LABELS[k] for k in req.stems] if req.stems else None,
             "mix_selection": req.mix_selection,
-            "format": req.output_format, "quality": req.quality,
+            "format": req.output_format, "quality": req.quality, "bpm": self.bpm,
             "created": self.created, "started": self.started, "finished": self.finished,
             "elapsed": ((self.finished or time.time()) - self.started) if self.started else 0,
         }
@@ -130,6 +132,7 @@ class JobManager:
             job.output_folder = str(res.output_folder)
             job.mode_used = res.mode_used
             job.warnings = res.warnings
+            job.bpm, job.beats = res.bpm, res.beats
             job.stems = [
                 {"key": key, "label": res.labels.get(key, STEM_LABELS.get(key, key)), "file": path.name,
                  "path": str(path)}

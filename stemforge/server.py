@@ -15,6 +15,8 @@ from . import __version__, config, osutil
 from .updater import updater
 from .engine import Engine, SeparationRequest
 from .jobs import JobManager
+from .sessions import SessionStore, session_from_folder, session_from_job
+from .analysis import MAX_SEMITONES
 from .presets import public_modes, public_stems, public_tiers, plan_for, MODES
 
 WEB_DIR = Path(__file__).parent / "web"
@@ -24,6 +26,7 @@ ALLOWED_HOSTS = {"127.0.0.1", "localhost"}
 config.ensure_dirs()
 settings = config.Settings.load()
 manager = JobManager(Engine())
+sessions = SessionStore()
 app = FastAPI(title="StemForge", docs_url=None, redoc_url=None, openapi_url=None)
 
 
@@ -235,6 +238,69 @@ def reveal(job_id: str):
     if not job.output_folder or not Path(job.output_folder).exists():
         raise HTTPException(404, "Carpeta no encontrada")
     return {"ok": osutil.open_folder(job.output_folder)}
+
+
+# ------------------------------------------------------------------ mezclador (sesiones)
+def _session_or_404(session_id: str):
+    session = sessions.get(session_id)
+    if not session:
+        raise HTTPException(404, "La sesión ya no está abierta")
+    return session
+
+
+@app.post("/api/jobs/{job_id}/session", dependencies=[Depends(guard)])
+def open_job_session(job_id: str):
+    """Abre en el mezclador las pistas de un trabajo terminado."""
+    job = _job_or_404(job_id)
+    if job.status != "done":
+        raise HTTPException(400, "El trabajo no ha terminado")
+    try:
+        return sessions.add(session_from_job(job)).to_dict()
+    except (OSError, ValueError) as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+class FolderIn(BaseModel):
+    path: str | None = None   # None = mostrar el selector de carpetas
+
+
+@app.post("/api/sessions/open-folder", dependencies=[Depends(guard)])
+def open_folder_session(body: FolderIn):
+    """Abre en el mezclador una carpeta con pistas ya extraídas (una carpeta a la vez)."""
+    path = body.path or osutil.choose_folder("Carpeta con las pistas a mezclar", settings.output_dir)
+    if not path:
+        return {"cancelled": True}
+    try:
+        return sessions.add(session_from_folder(Path(path))).to_dict()
+    except (OSError, ValueError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.get("/api/sessions/{session_id}/tempo", dependencies=[Depends(guard)])
+def session_tempo(session_id: str):
+    return _session_or_404(session_id).tempo()
+
+
+@app.get("/api/sessions/{session_id}/tracks/{key}", dependencies=[Depends(guard)])
+def session_track(session_id: str, key: str, semitones: int = 0):
+    if not -MAX_SEMITONES <= semitones <= MAX_SEMITONES:
+        raise HTTPException(400, f"La transposición va de -{MAX_SEMITONES} a +{MAX_SEMITONES} semitonos")
+    session = _session_or_404(session_id)
+    try:
+        path = session.audio_file(key, semitones)
+    except FileNotFoundError as exc:
+        raise HTTPException(404, "Pista no encontrada") from exc
+    except RuntimeError as exc:
+        raise HTTPException(500, str(exc)) from exc
+    return FileResponse(path, headers={"Cache-Control": "no-store"})
+
+
+@app.post("/api/sessions/{session_id}/reveal", dependencies=[Depends(guard)])
+def reveal_session(session_id: str):
+    session = _session_or_404(session_id)
+    if not session.folder.exists():
+        raise HTTPException(404, "Carpeta no encontrada")
+    return {"ok": osutil.open_folder(session.folder)}
 
 
 @app.post("/api/open-output", dependencies=[Depends(guard)])
