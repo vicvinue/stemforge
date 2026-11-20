@@ -1,234 +1,180 @@
 # StemForge
 
-**Versión 0.4.2** · por [vicvinue](https://github.com/vicvinue) · Licencia MIT
+**Separa cualquier canción en sus pistas —voz, batería, bajo, guitarra, piano…— y practica con ellas.**
+Incluye un mezclador con BPM, metrónomo y cambio de tono. Gratis y de código abierto, para
+**Mac con Apple Silicon** y **Windows 10/11**. Todo se procesa en tu computador: tus canciones no se suben a
+ningún sitio.
 
-Separador de stems para **macOS con Apple Silicon** (M1/M2/M3/M4) y **Windows 10/11 (x64)**.
-En el Mac usa la GPU (PyTorch **MPS / Metal**). En Windows hay dos instaladores: uno para **GPU NVIDIA (CUDA)**
-y otro, más liviano, que usa la CPU.
+**[⬇ Descargar la última versión](https://github.com/vicvinue/stemforge/releases/latest)** · versión 0.4.2
 
-![StemForge: cola de trabajos con una canción separándose y otra lista, con su BPM y metrónomo](docs/screenshots/cola.png)
+![StemForge: cola de trabajos con una canción separándose y otra lista](docs/screenshots/cola.png)
 
-<p align="center"><em>Cola de trabajos: elige el modo a la izquierda y sigue el progreso de cada canción. Arriba, «Abrir carpeta…» carga en el mezclador las pistas de una sesión anterior.</em></p>
+<p align="center"><em>Elige el tipo de separación a la izquierda y sigue el progreso de cada canción a la derecha.</em></p>
 
 ![StemForge: mezclador con las pistas separadas, el tempo, el metrónomo y el tono subido 2 semitonos](docs/screenshots/mezclador.png)
 
-<p align="center"><em>Mezclador integrado: stems sincronizados con mute, solo y volumen por pista, BPM detectado, metrónomo y cambio de tono (±5 semitonos) que se puede guardar como una versión nueva.</em></p>
+<p align="center"><em>El mezclador: escucha cada pista por separado, con BPM, metrónomo y cambio de tono.</em></p>
 
-<sub>Capturas hechas con una pista de demostración sintética (batería, bajo y acordes generados + voz de texto a voz de macOS).</sub>
+<sub>Capturas hechas con una canción de demostración sintética.</sub>
 
-## Qué hace
+## Descargar e instalar
 
-Modos ordenados **de menor a mayor calidad de separación**:
+En la [página de descargas](https://github.com/vicvinue/stemforge/releases/latest) elige el archivo según tu equipo:
 
-| # | Categoría | Modo | Salida | Modelos | Tiempo (canción de 4 min)* |
-|---|---|---|---|---|---|
-| 1 | Básica | **6 Stems · Demucs 6s** | Voz, Batería, Bajo, Guitarra, Piano, Otros, Instrumental | Demucs v4 6s | ≈ 1 min |
-| 2 | Básica | **4 Stems · Rápido** | Voz, Batería, Bajo, Otros, Instrumental | Demucs v4 | < 1 min |
-| 3 | Alta | **6 Stems · Guitarra y Piano** | Voz, Batería, Bajo, Guitarra, Piano, Otros, Instrumental | BS-Roformer SW | ≈ 3 min |
-| 4 | Alta | **4 Stems · Alta calidad** | Voz, Batería, Bajo, Otros, Instrumental | MelBand Roformer Kim → BS-Roformer SW sobre el instrumental | ≈ 5 min |
-| 5 | Máxima | **Instrumental + Voz** | Voz, Instrumental | Voz: MelBand Roformer Kim · Instrumental: BS-Roformer Gabox | ≈ 8 min |
-| 6 | Máxima | **Ultra · Ensemble** | Voz, Batería, Bajo, Guitarra, Piano, Otros, Instrumental | Promedio de 3 modelos de voz y 4 de instrumental (Kim, unwa Big Beta 4, Viperx 1297, Gabox) → BS-Roformer SW | ≈ 20 min |
+| Tu equipo | Archivo |
+|---|---|
+| Mac con Apple Silicon (M1, M2, M3, M4…) | `StemForge-<versión>.dmg` |
+| Windows con tarjeta gráfica NVIDIA compatible ([¿cuáles?](#gpu-nvidia-compatibles-windows)) | `StemForge-<versión>-CUDA-Setup.exe` **y** `StemForge-<versión>-CUDA-Setup-1.bin` |
+| Cualquier otro Windows | `StemForge-<versión>-Setup.exe` |
 
-Si un modelo no se puede descargar, cada paso usa una alternativa (p. ej. Viperx 1297 en lugar de Kim,
-Demucs en lugar de SW) y el trabajo lo avisa. En Ultra, un modelo que falle se omite del promedio.
+Cada versión también se puede bajar por **torrent**: los enlaces están en las notas de la versión.
 
-\* M1 Pro, calidad *Equilibrada*. La valoración se basa en los SDR publicados (lista de modelos de
-audio-separator, README de Demucs y tabla de MVSEP). Entre los modos «Máxima» la comparación es
-aproximada, porque los SDR de 2 pistas y de 6 pistas no son directamente comparables.
+### Mac
 
-**Flujo:** arrastra una o varias canciones → quedan *preparadas* (puedes quitarlas) → eliges modo y
-opciones → pulsa **«Agregar a la cola y separar»**. Recién ahí se envían y empieza la conversión.
+1. Abre el `.dmg` y arrastra **StemForge** a la carpeta **Aplicaciones**.
+2. La primera vez, macOS dirá que no puede comprobar el desarrollador (la app no está notarizada por Apple).
+   Ve a **Ajustes del Sistema → Privacidad y seguridad** y pulsa **Abrir igualmente**. Solo hace falta una vez.
 
-Opcional en todos los modos con batería: **dividir la batería** en Bombo, Caja, Toms, Hi-Hat, Ride y Crash (MDX23C DrumSep).
+Requiere macOS 13 o posterior en un Mac con Apple Silicon (no funciona en Mac con Intel). Usa la GPU del Mac.
 
-- **Calidad**: *Equilibrada* (solapamiento ≤ 2 en Roformer, 1 shift en Demucs; nunca más lento que el ajuste del modelo) o *Máxima* (solapamiento ≥ 4 y 2 shifts: ≈ 2× más lenta).
-- **Formatos**: WAV 24-bit, FLAC 24-bit, MP3 (320k por defecto). Internamente todo se procesa en float32 44,1 kHz.
-- **Mezclador** integrado: escucha los stems sincronizados, con mute/solo/volumen y forma de onda.
-  - **Abrir pistas ya extraídas**: «Abrir carpeta…» carga en el mezclador una carpeta de una sesión anterior
-    (todas sus pistas de audio, una carpeta a la vez). Usa el `stemforge.json` si existe; si no, reconoce las
-    pistas por su nombre (`Canción - Voz.wav`). Si la misma pista está en varios formatos, carga una sola.
-  - **Tempo (BPM)**: se detecta al extraer (y se guarda en `stemforge.json`) o al abrir una carpeta antigua.
-  - **Metrónomo**: un archivo más de la carpeta (`Canción - Metrónomo.wav`, en el formato de las pistas) con un
-    clic en cada pulso detectado, así que sigue las variaciones de tempo de la canción. Se crea al extraer o, en
-    carpetas antiguas, al abrirlas. En el mezclador aparece silenciado al abrir y se puede descargar.
-  - **Tono**: transpone de −5 a +5 semitonos sin cambiar la velocidad ni el tempo (ffmpeg). La batería y el
-    metrónomo no se transponen. **Guardar versión en este tono** escribe todas las pistas en una subcarpeta
-    del proyecto (`Tono +2 semitonos/`, con su `stemforge.json`), que luego se puede abrir como cualquier otra.
-- **Qué extraer**: «Todo» o solo los stems que elijas (p. ej. solo Voz y Bajo, o solo Bombo y Caja). Solo se ejecutan los modelos necesarios: pedir solo la Voz en «4 Stems · Alta calidad» no ejecuta Demucs.
-- **Mezclar la selección**: además de cada pista por separado, un archivo extra con las pistas elegidas
-  sumadas, p. ej. `Canción - Mezcla (Voz + Bajo).wav`. No suma dos veces el mismo sonido (si eliges
-  Instrumental junto con Batería, el Instrumental se entrega aparte pero no entra en la mezcla) y baja el
-  volumen solo si la suma saturaría. Se activa al elegir dos o más pistas (con «Todo» equivaldría al original).
-- **Cola**: arrastra varias canciones; se procesan de a una (la GPU no se comparte).
+### Windows
 
-Los archivos se guardan en `~/Music/StemForge/<Canción> [<Modo>]/<Canción> - <Stem>.wav` (en Windows,
-`Música\StemForge\…`) junto a un `stemforge.json` con los modelos y ajustes usados, el BPM y los pulsos.
+1. Ejecuta el instalador. No pide permisos de administrador.
+2. La primera vez, Windows SmartScreen puede avisar porque el instalador no está firmado:
+   pulsa **Más información → Ejecutar de todas formas**.
+3. Abre **StemForge** desde el menú Inicio.
 
-## App autónoma para macOS (recomendado)
+**Versión NVIDIA (CUDA):** baja los **dos** archivos (`.exe` y `.bin`) a la **misma carpeta** antes de
+ejecutar el `.exe`. Solo necesita el driver de NVIDIA al día. La versión normal funciona en cualquier PC,
+pero es más lenta.
 
-```bash
-./build_app.sh          # crea dist/StemForge.app y dist/StemForge-<versión>.dmg
+Requiere Windows 10 (versión 1809 o posterior) u 11, de 64 bits.
+
+> **La primera vez que uses cada tipo de separación** StemForge descarga sus modelos de inteligencia
+> artificial (entre 0,5 y 0,7 GB cada uno, aprox.). Necesitas conexión a internet y algo de paciencia esa
+> primera vez; después ya no se vuelven a descargar.
+
+## Cómo se usa
+
+1. **Arrastra una o varias canciones** a la ventana (o haz clic en el recuadro para elegirlas).
+   Acepta MP3, WAV, FLAC, M4A, AAC, OGG, AIFF, OPUS, WMA y MP4.
+2. **Elige el tipo de separación** (de menor a mayor calidad):
+
+   | Tipo | Pistas que obtienes | Tiempo aprox. por canción de 4 min* |
+   |---|---|---|
+   | 6 Stems · Demucs 6s | Voz, Batería, Bajo, Guitarra, Piano, Otros, Instrumental | ≈ 1 min |
+   | 4 Stems · Rápido | Voz, Batería, Bajo, Otros, Instrumental | < 1 min |
+   | 6 Stems · Guitarra y Piano | Voz, Batería, Bajo, Guitarra, Piano, Otros, Instrumental | ≈ 3 min |
+   | 4 Stems · Alta calidad | Voz, Batería, Bajo, Otros, Instrumental | ≈ 5 min |
+   | Instrumental + Voz | Voz, Instrumental (la mejor calidad para karaoke) | ≈ 8 min |
+   | Ultra · Ensemble | Voz, Batería, Bajo, Guitarra, Piano, Otros, Instrumental | ≈ 20 min |
+
+   <sub>* En un Mac M1 Pro con calidad *Equilibrada*. En Windows sin GPU NVIDIA puede tardar varias veces más.</sub>
+
+3. **Elige qué extraer:** «Todo» o solo las pistas que necesites (por ejemplo, solo Voz y Bajo; así es más
+   rápido). Opcionalmente:
+   - **Batería por piezas:** divide la batería en Bombo, Caja, Toms, Hi-Hat, Ride y Crash.
+   - **Mezclar la selección:** además de cada pista por separado, crea un archivo con las pistas elegidas
+     sumadas, por ejemplo `Canción - Mezcla (Voz + Bajo).wav`.
+4. **Opciones:**
+   - **Calidad:** *Equilibrada* (recomendada) o *Máxima* (algo mejor, pero tarda el doble).
+   - **Formato:** WAV o FLAC (máxima calidad) o MP3 (archivos más livianos).
+   - **Carpeta de salida:** dónde se guardan los resultados (por defecto, *Música › StemForge*).
+5. Pulsa **«Agregar a la cola y separar»**. Las canciones se procesan de a una; puedes seguir agregando más
+   o cancelar cualquiera.
+6. Cuando una canción esté lista: **Escuchar / Mezclar** abre el mezclador, **Abrir en Finder / en el
+   Explorador** muestra los archivos y **Descargar ZIP** los entrega todos juntos.
+
+## El mezclador
+
+- **Cada pista** tiene **M** (silenciar), **S** (escuchar solo esa) y su volumen. Haz clic en la forma de
+  onda para saltar a ese punto; la **barra espaciadora** reproduce o pausa.
+- **Tempo:** el BPM de la canción se detecta automáticamente.
+- **Metrónomo:** una pista más, con un clic en cada pulso de la canción (sigue sus cambios de tempo).
+  Aparece silenciado: pulsa **M** para oírlo. También se guarda como archivo junto a las demás pistas
+  (`Canción - Metrónomo.wav`), listo para usar en tu programa de música.
+- **Tono:** sube o baja hasta **5 semitonos** con **−** y **+**, sin cambiar la velocidad. La batería y el
+  metrónomo no se transponen. Si te gusta cómo quedó, **Guardar versión en este tono** guarda todas las pistas
+  con ese tono en una carpeta nueva dentro del proyecto (por ejemplo `Tono +2 semitonos`).
+- **Abrir pistas ya extraídas:** el botón **«Abrir carpeta…»** (arriba a la derecha) carga en el mezclador
+  una carpeta de una sesión anterior, con todas sus pistas. También sirve para las versiones guardadas en
+  otro tono.
+
+## Dónde quedan los archivos
+
+Cada canción tiene su propia carpeta dentro de la carpeta de salida (por defecto *Música › StemForge*):
+
+```
+Música/StemForge/
+  Mi canción [4 Stems · Alta calidad]/
+    Mi canción - Voz.wav
+    Mi canción - Batería.wav
+    Mi canción - Bajo.wav
+    Mi canción - Otros.wav
+    Mi canción - Instrumental.wav
+    Mi canción - Metrónomo.wav
+    stemforge.json               ← datos de la separación (BPM, ajustes…): no lo borres
+    Tono +2 semitonos/           ← solo si guardaste una versión en otro tono
 ```
 
-Abre el `.dmg` y arrastra **StemForge** a Aplicaciones. La app incluye su propio Python, todas las
-dependencias y un ffmpeg estático: no necesita esta carpeta, Homebrew ni un Python instalado. Pesa ≈ 1,4 GB
-(650 MB el DMG). Los modelos no van dentro: se descargan solos la primera vez que se usan.
+## Actualizaciones
 
-- Registro: `~/Library/Logs/StemForge.log`
-- CLI incluida: `/Applications/StemForge.app/Contents/Resources/stemforge cancion.mp3 -m stems4`
-- Está firmada ad-hoc (no notarizada): en este Mac abre directamente. Si la copias a otro Mac, la primera vez
-  ábrela con clic derecho → Abrir.
+StemForge avisa cuando hay una versión nueva. Pulsa **Actualizar** y luego **Reiniciar ahora**: normalmente
+se descarga menos de 1 MB y se conserva todo (modelos, ajustes y canciones). También puedes buscar a mano con
+**Buscar actualizaciones**, en el pie de la ventana; la casilla **«al abrir»** activa o desactiva la búsqueda
+automática. Nunca se instala nada mientras haya canciones procesándose.
 
-## Windows
-
-```powershell
-powershell -ExecutionPolicy Bypass -File build_windows.ps1          # PyTorch CPU
-powershell -ExecutionPolicy Bypass -File build_windows.ps1 -Cuda    # PyTorch CUDA (GPU NVIDIA)
-```
-
-Crea `dist\StemForge\` (carpeta portable: `Abrir StemForge.cmd`) y, si está
-[Inno Setup 6](https://jrsoftware.org/isinfo.php) (`winget install JRSoftware.InnoSetup`),
-`dist\StemForge-<versión>-Setup.exe`. El instalador no pide administrador: instala en
-`%LOCALAPPDATA%\Programs\StemForge`, crea el acceso en el menú Inicio y al desinstalar pregunta si
-borrar también los modelos. Incluye su propio Python, las dependencias y ffmpeg.
-
-- Requiere Windows 10 1809+ x64 con Microsoft Edge WebView2 (viene con Windows 11 y Windows 10 al día);
-  sin WebView2 se abre en el navegador.
-- **GPU**: la versión normal usa la CPU (los Roformer van varias veces más lentos que en un Mac M1).
-  Con `-Cuda` (PyTorch con CUDA 13) crea `StemForge-<versión>-CUDA-Setup.exe` + archivos `.bin`, que deben
-  estar en la misma carpeta al instalar. Ver [GPU NVIDIA compatibles](#gpu-nvidia-compatibles-windows).
-  AMD/Intel no se aceleran.
-- Datos y modelos: `%LOCALAPPDATA%\StemForge` · registro: `%LOCALAPPDATA%\StemForge\logs\StemForge.log`
-- CLI incluida: `stemforge.cmd cancion.mp3 -m stems4` en la carpeta de instalación.
-- No está firmado: SmartScreen avisa la primera vez (Más información → Ejecutar de todas formas).
-- El workflow `.github/workflows/windows.yml` (manual o al publicar un tag `v*`) compila, separa audio
-  real en una máquina Windows, prueba el instalador y deja el `Setup.exe` como artefacto.
+Si tienes una versión anterior a la 0.3.0, instala la última a mano una vez; desde ahí se actualiza sola.
 
 ### GPU NVIDIA compatibles (Windows)
 
-La variante CUDA (`StemForge-<versión>-CUDA-Setup.exe`) usa PyTorch con CUDA 13. Las librerías de CUDA
-vienen incluidas: **solo hace falta el driver de NVIDIA** (serie 580 o posterior), sin instalar el CUDA Toolkit.
+La versión CUDA de Windows aprovecha la tarjeta gráfica NVIDIA y es mucho más rápida. **Solo necesita el
+driver de NVIDIA** (serie 580 o posterior); no hay que instalar nada más.
 
-| GPU | ¿Se acelera? |
+| Tarjeta gráfica | ¿Se acelera? |
 |---|---|
-| GeForce RTX 50xx (Blackwell) | ✅ Sí |
-| GeForce RTX 40xx (Ada Lovelace) | ✅ Sí |
-| GeForce RTX 30xx (Ampere) | ✅ Sí |
-| GeForce RTX 20xx y GTX 16xx (Turing, p. ej. GTX 1650/1660) | ✅ Sí |
+| GeForce RTX 50xx, 40xx, 30xx y 20xx | ✅ Sí |
+| GeForce GTX 16xx (p. ej. GTX 1650 o 1660) | ✅ Sí |
 | Profesionales: Quadro RTX, RTX A-series, RTX Ada, RTX PRO | ✅ Sí |
-| GeForce GTX 10xx (Pascal), GTX 9xx (Maxwell) y anteriores, Titan V | ❌ No: CUDA 13 ya no las soporta; la app usa la CPU |
-| AMD Radeon, Intel Arc / gráficos integrados | ❌ No: la app usa la CPU |
+| GeForce GTX 10xx, GTX 9xx y anteriores, Titan V | ❌ No: usa la versión normal |
+| AMD Radeon, Intel Arc o gráficos integrados | ❌ No: usa la versión normal |
 
-- Con varias NVIDIA usa la primera. Para elegir otra, define la variable de entorno `CUDA_VISIBLE_DEVICES`
-  (p. ej. `1`) antes de abrir StemForge.
-- La interfaz indica qué está pasando: «GPU NVIDIA (CUDA) ✓» si la usa; «CPU · versión sin CUDA» si hay una
-  NVIDIA pero se instaló la variante CPU; «CPU · GPU NVIDIA no disponible» si el driver es antiguo o la GPU
-  no es compatible (pasa el ratón por encima para ver el motivo).
-- En una PC sin NVIDIA compatible conviene la variante normal (CPU): pesa ≈ 270 MB en vez de ≈ 3 GB.
+Arriba a la derecha, la app muestra qué está usando: **«GPU NVIDIA (CUDA) ✓»** si aprovecha la tarjeta.
+Si dice **«CPU · versión sin CUDA»**, tienes una NVIDIA pero instalaste la versión normal; si dice
+**«CPU · GPU NVIDIA no disponible»**, actualiza el driver (pasa el ratón por encima para ver el motivo).
+En un PC sin NVIDIA compatible conviene la versión normal: pesa ≈ 270 MB en vez de ≈ 2 GB.
 
-## Actualizaciones automáticas
+## Preguntas frecuentes
 
-StemForge busca versiones nuevas en las releases de GitHub al abrirse (se puede desactivar con la casilla
-«al abrir» del pie de la ventana) o con el botón **Buscar actualizaciones**. Si hay una, aparece un aviso
-con **Actualizar**: descarga, verifica el SHA-256 y, con un clic en **Reiniciar ahora**, queda aplicada.
+**¿Mis canciones se suben a internet?**
+No. Todo se procesa en tu computador. StemForge solo se conecta para descargar los modelos (la primera vez)
+y para buscar actualizaciones.
 
-- **Actualización pequeña** (lo habitual, ≈ 0,3 MB): cuando la versión nueva solo cambia el código de
-  StemForge, se descarga solo ese código a la carpeta de datos (`…/StemForge/updates/`) y se usa desde ahí.
-  La instalación no se modifica (en el Mac la firma de la app sigue intacta). Si la versión nueva no llegara
-  a arrancar, la siguiente vez se abre la instalada y se ofrece el instalador completo.
-- **Actualización completa**: cuando cambian Python o las dependencias, se descarga el instalador de tu
-  plataforma (DMG, `Setup.exe` normal o la variante CUDA, según lo que tengas instalado). La app se cierra,
-  se instala sola y vuelve a abrirse. En el Mac reemplaza `StemForge.app` en su carpeta (si no tiene permiso
-  de escritura, abre el DMG para arrastrarla).
-- **Copia de desarrollo** (git): `git pull` en la rama `main` (y reinstala dependencias con `uv` si
-  cambiaron). Si hay cambios sin guardar, avisa y no toca nada.
-- La carpeta portable de Windows no se actualiza sola: el aviso enlaza a la release.
-- No se instala nada mientras haya separaciones en curso.
+**La primera separación tarda mucho y la barra se ve con rayas amarillas.**
+Dice «Descargando modelo…»: está bajando los modelos de ese tipo de separación. Pasa una sola vez.
 
-Las versiones 0.2.x no traen el actualizador: hay que instalar la 0.3.0 a mano una vez.
+**¿Qué tipo de separación elijo?**
+Para practicar un instrumento, *4 Stems · Alta calidad* o *6 Stems · Guitarra y Piano*. Para karaoke o
+para quitar la voz, *Instrumental + Voz*. Si tienes prisa, *4 Stems · Rápido*.
 
-### Publicar una versión
+**El BPM no coincide con el que conozco.**
+Es una estimación automática. En canciones con cambios de tempo puede variar, y a veces sale al doble o a la
+mitad del valor «oficial». El metrónomo igual sigue los pulsos reales de la canción.
 
-1. Sube `__version__` en `stemforge/__init__.py` y `version` en `pyproject.toml`. Si cambiaste dependencias
-   o la versión de Python, sube también `RUNTIME` (el test `test_runtime_bumped_when_dependencies_change`
-   lo recuerda): así las instalaciones existentes reciben el instalador completo en vez del código solo.
-2. `./build_app.sh` (DMG) y un tag `vX.Y.Z` en GitHub: el workflow de Windows compila los dos `Setup.exe`.
-   Copia a `dist/` el DMG y los instaladores de Windows (`gh run download <id>`).
-3. `.venv/bin/python tools/make_update_assets.py` crea `dist/stemforge-app-X.Y.Z.zip` y `dist/latest.json`.
-4. `gh release create vX.Y.Z` con **todos** los archivos que lista el paso 3. La app consulta
-   `releases/latest/download/latest.json`, así que la release debe quedar marcada como «Latest».
+**¿Cómo desinstalo StemForge?**
+En Mac, arrastra StemForge desde Aplicaciones a la papelera; los modelos y ajustes quedan en
+`~/Library/Application Support/StemForge` por si quieres borrarlos también. En Windows, desinstálalo desde
+*Configuración › Aplicaciones*; te preguntará si quieres borrar también los modelos. Tus canciones separadas
+nunca se borran.
 
-## Instalación para desarrollo
-
-macOS:
-
-```bash
-./setup.sh          # instala ffmpeg/uv si faltan y crea .venv (Python 3.12)
-```
-
-Luego ejecuta `./run.sh` (`./run.sh --browser` para usar el navegador).
-
-Windows (PowerShell):
-
-```powershell
-powershell -ExecutionPolicy Bypass -File setup.ps1    # instala uv si falta, crea .venv; CUDA si hay NVIDIA
-.\run.bat                                             # .\run.bat --browser para usar el navegador
-```
-
-Los modelos se descargan solos la primera vez que se usan (≈ 0,5–0,7 GB cada Roformer) en
-`~/Library/Application Support/StemForge/models` (Mac) o `%LOCALAPPDATA%\StemForge\models` (Windows).
-
-## Línea de comandos
-
-```bash
-.venv/bin/stemforge cancion.mp3                         # 4 stems alta calidad
-.venv/bin/stemforge cancion.mp3 -m instrumental -f flac
-.venv/bin/stemforge carpeta/ -m stems6 --drumsep -q max
-.venv/bin/stemforge cancion.mp3 -m stems6 -s voz,guitarra        # solo esos stems
-.venv/bin/stemforge cancion.mp3 -m stems4 -s voz,bajo --mix         # + archivo «Mezcla (Voz + Bajo)»
-.venv/bin/stemforge --list-modes
-.venv/bin/stemforge --info                              # comprueba MPS / CoreML / CUDA
-```
-
-## Rendimiento orientativo (M1 Pro, 16 GB, calidad Equilibrada)
-
-Por cada minuto de audio: MelBand Kim ≈ 26 s · BS-Roformer SW ≈ 45 s · Big Beta 4 ≈ 65 s ·
-Viperx 1297 ≈ 70 s · Gabox ≈ 70 s · Demucs FT ≈ 20 s · Demucs ≈ 11 s.
-*Máxima* aproximadamente duplica los tiempos de los Roformer.
-
-## Arquitectura
-
-```
-stemforge/
-  presets.py   modos = cadenas de pasos (modelo, entrada, mapeo de stems)
-  engine.py    ejecuta los pasos con audio-separator, suma residuos, exporta con ffmpeg
-  jobs.py      cola con un hilo trabajador, progreso y cancelación
-  sessions.py  sesiones del mezclador: pistas de un trabajo o de una carpeta abierta, caché transpuesta
-  analysis.py  tempo (librosa: BPM + pulsos) y transposición (ffmpeg asetrate + atempo)
-  server.py    API FastAPI solo en 127.0.0.1 (token por sesión + control de Host)
-  app.py       ventana nativa (pywebview: WebKit en Mac, WebView2 en Windows) o navegador
-  osutil.py    diferencias entre sistemas: carpetas de datos, abrir carpeta, selector de carpetas
-  updater.py   buscar, descargar y aplicar actualizaciones (latest.json de cada release)
-  cli.py       interfaz de línea de comandos
-  web/         interfaz (HTML + Web Audio)
-```
-
-Agregar un modo nuevo = añadir un `Mode` en `presets.py` con sus `Step`. Cualquier modelo de la lista
-de `audio-separator -l` sirve (MDX-Net, VR, Demucs, MDX23C, BS/MelBand-Roformer).
-
-## Tests
-
-```bash
-.venv/bin/python -m pytest -q
-PYTHONPATH=<copia de stemforge fuera del repo> .venv/bin/python tools/update_e2e.py -- .venv/bin/python -B -m stemforge.app
-```
-
-`tools/update_e2e.py` prueba el actualizador de punta a punta con una release falsa servida desde archivos
-locales; el workflow de Windows lo ejecuta sobre la copia instalada (actualización pequeña y completa).
+**Encontré un problema.**
+Cuéntalo en [Issues](https://github.com/vicvinue/stemforge/issues) y, si puedes, adjunta el registro de la
+app: `~/Library/Logs/StemForge.log` (Mac) o `%LOCALAPPDATA%\StemForge\logs\StemForge.log` (Windows).
 
 ## Créditos y licencias
 
-El código de StemForge se publica bajo licencia [MIT](LICENSE).
+StemForge es obra de [vicvinue](https://github.com/vicvinue) y se publica bajo licencia [MIT](LICENSE).
+Usa estos proyectos y modelos de código abierto:
 
 - [python-audio-separator](https://github.com/nomadkaraoke/python-audio-separator) (MIT) — motor de inferencia de modelos UVR.
 - [Demucs](https://github.com/facebookresearch/demucs) (MIT) — Meta AI.
@@ -236,3 +182,7 @@ El código de StemForge se publica bajo licencia [MIT](LICENSE).
 - Pesos de modelos: BS-Roformer (viperx), MelBand Roformer (Kimberley Jensen), MelBand Big Beta 4 (unwa),
   BS-Roformer (Gabox), BS-Roformer SW (jarredou), MDX23C DrumSep (aufr33 & jarredou).
   Cada modelo tiene su propia licencia; revísalas antes de cualquier uso que no sea personal.
+
+---
+
+¿Quieres compilar StemForge o contribuir? Mira la [guía para desarrolladores](docs/DESARROLLO.md).
