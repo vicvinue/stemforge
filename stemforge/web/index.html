@@ -38,9 +38,12 @@ main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(330px,420px) 
 .open-card .btn:disabled{opacity:.5;cursor:default}
 .queue-head{position:sticky;top:0;z-index:3;display:flex;align-items:center;justify-content:space-between;
   margin:-18px -18px 0;padding:18px 18px 12px;background:var(--panel);border-radius:var(--radius) var(--radius) 0 0}
-.left-scroll,.col-right{scrollbar-width:thin;scrollbar-color:#343846 transparent}
-.left-scroll::-webkit-scrollbar,.col-right::-webkit-scrollbar{width:8px}
-.left-scroll::-webkit-scrollbar-thumb,.col-right::-webkit-scrollbar-thumb{background:#343846;border-radius:8px}
+/* Scrollbars morados. Sin scrollbar-width/scrollbar-color: si se definen, WebKit y Chromium ignoran ::-webkit-scrollbar */
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(124,92,255,.5);border-radius:9px;border:2px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:var(--accent);background-clip:padding-box}
+::-webkit-scrollbar-corner{background:transparent}
 /* Pantallas angostas: una columna y scroll normal de la página */
 @media (max-width:900px){
   body{overflow:auto;display:block}
@@ -178,14 +181,27 @@ input[type=range]{accent-color:var(--accent);cursor:pointer}
 .mix-tools .tl{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-right:2px}
 .mix-tools .val{font-size:13.5px;min-width:56px}
 .mix-tools .val b{font-size:15px}
-.mix-tools .semi{min-width:104px;text-align:center}
 .mix-tools .semi.on{color:var(--accent2);font-weight:600}
-.mix-tools .btn.step{width:30px;height:28px;padding:0;display:inline-grid;place-items:center;font-size:16px;font-weight:700;line-height:1}
+.mix-tools .tool.tone{margin-left:auto;flex-wrap:wrap;justify-content:flex-end}
+.mix-tools .sep{width:1px;height:20px;background:var(--line);margin:0 6px}
+/* Selector de tono compacto: [ − | +2 semitonos | + ] */
+.stepper{display:inline-flex;align-items:stretch;height:30px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);overflow:hidden}
+/* WebKit (la ventana de la app en Mac) no centra el contenido del botón con grid ni con text-align: flex sí */
+.stepper .step{display:inline-flex;align-items:center;justify-content:center;width:32px;padding:0;border:0;background:transparent;color:var(--text);cursor:pointer;transition:.12s}
+.stepper .step:hover:not(:disabled){background:#2d3140;color:var(--accent2)}
+.stepper .step:disabled{opacity:.3;cursor:default}
+.stepper .step svg{display:block;pointer-events:none}
+.stepper .semi{display:inline-flex;align-items:center;justify-content:center;min-width:112px;padding:0 6px;font-size:13.5px;
+  border-left:1px solid var(--line);border-right:1px solid var(--line)}
+.mix-tools .saved{color:var(--accent2);font-size:12.5px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mix-tools .btn:disabled{opacity:.35;cursor:default}
 .mix-tools .muted{color:var(--muted);font-size:12.5px}
 .mix-tools .spin{animation:pulse 1s ease-in-out infinite alternate}
 @keyframes pulse{from{opacity:.4}to{opacity:1}}
 .track.metro .name{color:#c9cdd8}
+.track .name .lbl{overflow:hidden;text-overflow:ellipsis}
+.track .name .dl{display:inline-flex;align-items:center;justify-content:center;color:var(--muted);padding:3px;border:0;background:transparent;border-radius:6px;margin-left:-2px;cursor:pointer}
+.track .name .dl:hover{color:var(--text);background:#2a2e38}
 footer{flex:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 24px;
   border-top:1px solid var(--line);color:var(--muted);font-size:12px;background:var(--bg)}
 footer a{color:var(--text);text-decoration:none;display:inline-flex;align-items:center;gap:6px}
@@ -657,10 +673,12 @@ $("#clearDone").onclick = async () => {
 // ------------------------------------------------------------------ mezclador (Web Audio, sincronía exacta)
 // Una «sesión» son las pistas de un trabajo terminado o de una carpeta abierta (una a la vez).
 const mixer = { ctx: null, session: null, jobId: null, tracks: [], playing: false, startAt: 0, offset: 0, duration: 0, raf: 0,
-                loadToken: 0, semitones: 0, pitchToken: 0, pitchTimer: 0, bpmFactor: 1, beats: [], bpm: null, tempoTimer: 0 };
+                loadToken: 0, semitones: 0, pitchToken: 0, pitchTimer: 0, bpm: null, tempoState: "done", tempoTimer: 0,
+                adding: new Set(), saving: false, saved: null };
 const MAX_SEMI = 5, METRO_KEY = "metronome";
 const DRUM_PARTS = ["kick", "snare", "toms", "hihat", "ride", "crash"], INSTR = ["drums", "bass", "guitar", "piano", "other", ...DRUM_PARTS];
 const EXTRA_COLORS = ["#ff9f6b", "#6bd4ff", "#c38bff", "#7be08a", "#ffd36b", "#ff7bc8", "#6b8cff", "#b5e06b"];
+const ICON_FOLDER = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M1.75 4.25c0-.69.56-1.25 1.25-1.25h3l1.5 1.5H13c.69 0 1.25.56 1.25 1.25v6.5c0 .69-.56 1.25-1.25 1.25H3c-.69 0-1.25-.56-1.25-1.25z"/></svg>';
 function audioCtx() { if (!mixer.ctx) mixer.ctx = new (window.AudioContext || window.webkitAudioContext)(); return mixer.ctx; }
 function trackColor(key) {
   const base = key.startsWith("x-") ? "" : key.split("-")[0];
@@ -680,28 +698,29 @@ function defaultMuted(k, keys) {
 }
 const trackUrl = (key, semi) => `/api/sessions/${mixer.session.id}/tracks/${encodeURIComponent(key)}?semitones=${semi}`;
 async function fetchBuffer(key, semi) { const res = await api(trackUrl(key, semi)); return audioCtx().decodeAudioData(await res.arrayBuffer()); }
+function makeTrack(s, buf, keys) {
+  const gain = audioCtx().createGain(); gain.connect(audioCtx().destination);
+  return { ...s, buffer: buf, original: buf, gain, volume: baseKey(s.key) === METRO_KEY ? 0.8 : 1, mute: defaultMuted(s.key, keys),
+           solo: false, src: null, peaks: peaks(buf, 600) };
+}
 
 async function openSession(session, jobId = null) {
   stopPlayback(); clearTimeout(mixer.tempoTimer); clearTimeout(mixer.pitchTimer);
-  Object.assign(mixer, { session, jobId, tracks: [], offset: 0, duration: 0, semitones: 0, bpmFactor: 1, beats: [], bpm: null });
-  mixer.pitchToken++;
+  Object.assign(mixer, { session, jobId, tracks: [], offset: 0, duration: 0, semitones: 0, bpm: session.bpm,
+                         tempoState: session.tempo_state, saving: false, saved: null, pitchLoading: false });
+  mixer.adding.clear(); mixer.pitchToken++;
   const token = ++mixer.loadToken;
   $("#mixer").classList.add("open"); $("#mixTitle").textContent = session.title; $("#mixTitle").title = session.folder;
   $("#tracks").innerHTML = `<div class="loading">Cargando ${session.tracks.length} pista(s)…</div>`;
   renderMixTools();
   $("#mixer").scrollIntoView({ behavior: "smooth", block: "start" });
   if (session.skipped?.length) toast(`Se cargan ${session.tracks.length} pistas; ${session.skipped.length} quedaron fuera (máximo alcanzado)`);
-  const ctx = audioCtx(), keys = session.tracks.map(t => t.key);
+  const keys = session.tracks.map(t => t.key);
   try {
-    const loaded = await Promise.all(session.tracks.map(async s => {
-      const buf = await fetchBuffer(s.key, 0);
-      const gain = ctx.createGain(); gain.connect(ctx.destination);
-      return { ...s, buffer: buf, original: buf, gain, volume: 1, mute: defaultMuted(s.key, keys), solo: false, src: null, peaks: peaks(buf, 600) };
-    }));
+    const loaded = await Promise.all(session.tracks.map(async s => makeTrack(s, await fetchBuffer(s.key, 0), keys)));
     if (token !== mixer.loadToken) return;
     mixer.tracks = loaded;
     mixer.duration = Math.max(...loaded.map(t => t.buffer.duration));
-    applyTempo({ bpm: session.bpm, beats: null, state: session.tempo_state });
     renderTracks(); applyGains(); updateTime();
     pollTempo(token);
   } catch (e) { if (token === mixer.loadToken) $("#tracks").innerHTML = `<div class="err">No se pudo cargar el audio: ${esc(e.message)}</div>`; }
@@ -727,63 +746,39 @@ $("#mixClose").onclick = closeMixer;
 $("#mixReveal").onclick = () => mixer.session && api(`/api/sessions/${mixer.session.id}/reveal`, { method: "POST" }).catch(e => toast(e.message));
 $("#mixReset").onclick = () => {
   const keys = mixer.tracks.map(t => t.key);
-  mixer.tracks.forEach(t => { t.volume = 1; t.solo = false; t.mute = defaultMuted(t.key, keys); });
+  mixer.tracks.forEach(t => { t.volume = baseKey(t.key) === METRO_KEY ? 0.8 : 1; t.solo = false; t.mute = defaultMuted(t.key, keys); });
   renderTracks(); applyGains();
-  if (mixer.bpmFactor !== 1) setBpmFactor(1);
   if (mixer.semitones !== 0) setSemitones(0);
 };
 
-// ---- tempo y metrónomo
+// ---- tempo y metrónomo (el metrónomo es un archivo más de la carpeta: lo crea el servidor)
 async function pollTempo(token) {
   if (token !== mixer.loadToken || !mixer.session) return;
   let t;
   try { t = await api(`/api/sessions/${mixer.session.id}/tempo`); } catch { return; }
   if (token !== mixer.loadToken) return;
-  applyTempo(t);
+  mixer.bpm = t.bpm; mixer.tempoState = t.state; renderMixTools();
+  if (t.metronome) addTrack(t.metronome, token);
   if (t.state === "pending" || t.state === "running") mixer.tempoTimer = setTimeout(() => pollTempo(token), 1500);
 }
-function applyTempo(t) {
-  mixer.tempoState = t.state;
-  if (t.beats) { mixer.bpm = t.bpm; mixer.beats = t.beats; rebuildMetronome(); }
-  else mixer.bpm = t.bpm;
-  renderMixTools();
+// Agrega una pista que apareció después de abrir (el metrónomo de una carpeta recién analizada)
+async function addTrack(s, token) {
+  if (mixer.tracks.some(t => t.key === s.key) || mixer.adding.has(s.key)) return;
+  mixer.adding.add(s.key);
+  try {
+    const buf = await fetchBuffer(s.key, 0);
+    if (token !== mixer.loadToken || mixer.tracks.some(t => t.key === s.key)) return;
+    const track = makeTrack(s, buf, [...mixer.tracks.map(t => t.key), s.key]);
+    replaceBuffers(() => mixer.tracks.push(track));
+    renderTracks(); applyGains();
+  } catch {} finally { mixer.adding.delete(s.key); }
 }
-// ×2: se agrega un pulso entre cada par · ÷2: uno de cada dos
-function scaledBeats() {
-  const b = mixer.beats;
-  if (mixer.bpmFactor === 2) { const out = []; for (let i = 0; i < b.length; i++) { out.push(b[i]); out.push(i + 1 < b.length ? (b[i] + b[i + 1]) / 2 : b[i] + (b[i] - (b[i - 1] ?? b[i])) / 2); } return out; }
-  if (mixer.bpmFactor === 0.5) return b.filter((_, i) => i % 2 === 0);
-  return b;
-}
-function metronomeBuffer(times, duration) {
-  const ctx = audioCtx(), sr = ctx.sampleRate, len = Math.max(1, Math.ceil(duration * sr));
-  const buf = ctx.createBuffer(1, len, sr), data = buf.getChannelData(0), n = Math.round(0.04 * sr);
-  for (const t of times) {
-    const start = Math.round(t * sr); if (start < 0 || start >= len) continue;
-    for (let i = 0; i < n && start + i < len; i++) { const x = i / sr; data[start + i] += 0.55 * Math.sin(2 * Math.PI * 1760 * x) * Math.exp(-x / 0.007); }
-  }
-  return buf;
-}
-function rebuildMetronome() {
-  if (!mixer.tracks.length) return;
-  const idx = mixer.tracks.findIndex(t => t.key === METRO_KEY);
-  if (!mixer.beats.length) { if (idx >= 0) { replaceBuffers(() => mixer.tracks.splice(idx, 1)); renderTracks(); } return; }
-  const buf = metronomeBuffer(scaledBeats(), mixer.duration);
-  if (idx >= 0) replaceBuffers(() => { const t = mixer.tracks[idx]; t.buffer = t.original = buf; t.peaks = peaks(buf, 600); });
-  else {
-    const gain = audioCtx().createGain(); gain.connect(audioCtx().destination);
-    replaceBuffers(() => mixer.tracks.push({ key: METRO_KEY, label: "Metrónomo", pitched: false, buffer: buf, original: buf, gain, volume: 0.8,
-      mute: true, solo: false, src: null, peaks: peaks(buf, 600), metro: true }));
-  }
-  renderTracks(); applyGains();
-}
-function setBpmFactor(f) { mixer.bpmFactor = f; rebuildMetronome(); renderMixTools(); }
 
-// ---- transposición (las pistas con tono; batería y metrónomo no cambian)
+// ---- transposición (las pistas con tono; batería y metrónomo no cambian, ni el tempo)
 function setSemitones(n) {
   n = Math.max(-MAX_SEMI, Math.min(MAX_SEMI, n));
   if (n === mixer.semitones && !mixer.pitchLoading) return;
-  mixer.semitones = n; renderMixTools();
+  mixer.semitones = n; mixer.saved = null; renderMixTools();
   clearTimeout(mixer.pitchTimer);
   mixer.pitchTimer = setTimeout(() => loadPitch(n), 350);    // si se pulsa varias veces seguidas, se procesa una sola
 }
@@ -802,6 +797,18 @@ async function loadPitch(n) {
     if (token === mixer.pitchToken) { mixer.pitchLoading = false; renderMixTools(); }
   }
 }
+// Guarda todas las pistas con el tono elegido en una carpeta nueva dentro del proyecto
+async function saveVersion() {
+  const session = mixer.session, semi = mixer.semitones;
+  if (!session || !semi || mixer.saving) return;
+  mixer.saving = true; mixer.saved = null; renderMixTools();
+  try {
+    const r = await api(`/api/sessions/${session.id}/export`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ semitones: semi }) });
+    if (session === mixer.session && semi === mixer.semitones) mixer.saved = r;
+    toast(`Guardado: ${r.files.length} pistas en «${r.name}»`);
+  } catch (e) { toast("No se pudo guardar: " + e.message); }
+  finally { if (session === mixer.session) { mixer.saving = false; renderMixTools(); } }
+}
 // Cambia buffers sin perder la posición (si estaba sonando, sigue desde el mismo punto)
 function replaceBuffers(fn) {
   const was = mixer.playing, at = position();
@@ -812,23 +819,27 @@ function replaceBuffers(fn) {
 }
 function renderMixTools() {
   const el = $("#mixTools"); if (!mixer.session) { el.innerHTML = ""; return; }
-  const st = mixer.tempoState, bpm = mixer.bpm ? Math.round(mixer.bpm * mixer.bpmFactor) : null;
+  const st = mixer.tempoState, bpm = mixer.bpm ? Math.round(mixer.bpm) : null;
   const bpmTxt = bpm ? `<b>${bpm}</b> BPM` : (st === "pending" || st === "running") ? '<span class="muted">calculando…</span>' : '<span class="muted">sin pulso claro</span>';
-  const canFactor = !!mixer.beats.length;
   const semi = mixer.semitones, pitched = mixer.tracks.some(t => t.pitched) || !mixer.tracks.length;
   const semiTxt = semi === 0 ? "Original" : `${semi > 0 ? "+" : "−"}${Math.abs(semi)} semitono${Math.abs(semi) > 1 ? "s" : ""}`;
+  const busy = mixer.pitchLoading || mixer.saving;
+  let save = "";
+  if (mixer.saved) save = `<span class="saved" title="${esc(mixer.saved.folder)}">✓ Guardado en «${esc(mixer.saved.name)}»</span><button class="btn small" data-tool="open-saved">Abrir</button><span class="sep"></span>`;
+  else if (semi) save = `<button class="btn small primary" data-tool="save" ${busy ? "disabled" : ""} title="Guarda todas las pistas con este tono en una carpeta nueva dentro del proyecto">${mixer.saving ? "Guardando…" : "Guardar versión en este tono"}</button><span class="sep"></span>`;
   el.innerHTML = `
-    <div class="tool" title="Tempo detectado. Si sale al doble o a la mitad, corrígelo con ÷2 / ×2 (también ajusta el metrónomo).">
+    <div class="tool" title="Tempo detectado de la canción. El cambio de tono no lo modifica.">
       <span class="tl">Tempo</span><span class="val">${bpmTxt}</span>
-      <button class="btn small" data-tool="half" ${canFactor && mixer.bpmFactor !== 0.5 ? "" : "disabled"}>÷2</button>
-      <button class="btn small" data-tool="double" ${canFactor && mixer.bpmFactor !== 2 ? "" : "disabled"}>×2</button>
     </div>
-    <div class="tool" title="Cambia el tono sin cambiar la velocidad (máx. ±${MAX_SEMI}). La batería no se transpone.">
-      <span class="tl">Tono</span>
-      <button class="btn small step" data-tool="down" ${pitched && semi > -MAX_SEMI ? "" : "disabled"} title="Bajar un semitono">${ICON_MINUS}</button>
-      <span class="val semi ${semi ? "on" : ""}">${semiTxt}</span>
-      <button class="btn small step" data-tool="up" ${pitched && semi < MAX_SEMI ? "" : "disabled"} title="Subir un semitono">${ICON_PLUS}</button>
+    <div class="tool tone" title="Cambia el tono sin cambiar la velocidad (máx. ±${MAX_SEMI}). La batería y el metrónomo no se transponen.">
       ${mixer.pitchLoading ? '<span class="muted spin">transponiendo…</span>' : ""}
+      ${save}
+      <span class="tl">Tono</span>
+      <div class="stepper">
+        <button class="step" data-tool="down" ${pitched && semi > -MAX_SEMI ? "" : "disabled"} title="Bajar un semitono">${ICON_MINUS}</button>
+        <span class="semi ${semi ? "on" : ""}">${semiTxt}</span>
+        <button class="step" data-tool="up" ${pitched && semi < MAX_SEMI ? "" : "disabled"} title="Subir un semitono">${ICON_PLUS}</button>
+      </div>
     </div>`;
 }
 $("#mixTools").onclick = e => {
@@ -836,8 +847,8 @@ $("#mixTools").onclick = e => {
   const t = b.dataset.tool;
   if (t === "up") setSemitones(mixer.semitones + 1);
   if (t === "down") setSemitones(mixer.semitones - 1);
-  if (t === "double") setBpmFactor(mixer.bpmFactor === 0.5 ? 1 : 2);
-  if (t === "half") setBpmFactor(mixer.bpmFactor === 2 ? 1 : 0.5);
+  if (t === "save") saveVersion();
+  if (t === "open-saved" && mixer.saved) api(`/api/sessions/${mixer.session.id}/reveal?sub=${encodeURIComponent(mixer.saved.name)}`, { method: "POST" }).catch(e => toast(e.message));
 };
 
 function peaks(buf, n) {
@@ -856,8 +867,9 @@ function drawWave(canvas, data, color, dim) {
 }
 function renderTracks() {
   $("#tracks").innerHTML = mixer.tracks.map((t, i) => `
-    <div class="track ${t.metro ? "metro" : ""}" data-i="${i}">
-      <div class="name" title="${esc(t.file || t.label)}"><i class="dot" style="background:${trackColor(t.key)}"></i>${esc(t.label)}</div>
+    <div class="track ${baseKey(t.key) === METRO_KEY ? "metro" : ""}" data-i="${i}">
+      <div class="name" title="${esc(t.file || t.label)}"><i class="dot" style="background:${trackColor(t.key)}"></i><span class="lbl">${esc(t.label)}</span>${baseKey(t.key) === METRO_KEY
+        ? `<button class="dl" data-reveal="1" title="Guardado en la carpeta del proyecto: ${esc(t.file || "")} · clic para abrirla">${ICON_FOLDER}</button>` : ""}</div>
       <div class="ms"><button class="m ${t.mute ? "on" : ""}" title="Silenciar">M</button><button class="s ${t.solo ? "on" : ""}" title="Solo">S</button></div>
       <div class="wave"><canvas></canvas><div class="ph"></div></div>
       <input type="range" min="0" max="150" value="${Math.round(t.volume * 100)}" title="Volumen">
@@ -865,6 +877,8 @@ function renderTracks() {
   document.querySelectorAll(".track").forEach(row => {
     const t = mixer.tracks[+row.dataset.i];
     row.querySelector(".m").onclick = () => { t.mute = !t.mute; renderTracks(); applyGains(); };
+    const dl = row.querySelector("[data-reveal]");
+    if (dl) dl.onclick = () => api(`/api/sessions/${mixer.session.id}/reveal`, { method: "POST" }).catch(e => toast(e.message));
     row.querySelector(".s").onclick = () => { t.solo = !t.solo; renderTracks(); applyGains(); };
     row.querySelector("input").oninput = e => { t.volume = e.target.value / 100; applyGains(); };
     row.querySelector(".wave").onclick = e => { const r = e.currentTarget.getBoundingClientRect(); seekTo((e.clientX - r.left) / r.width * mixer.duration); };

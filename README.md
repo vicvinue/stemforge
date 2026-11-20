@@ -48,11 +48,12 @@ Opcional en todos los modos con batería: **dividir la batería** en Bombo, Caja
     (todas sus pistas de audio, una carpeta a la vez). Usa el `stemforge.json` si existe; si no, reconoce las
     pistas por su nombre (`Canción - Voz.wav`). Si la misma pista está en varios formatos, carga una sola.
   - **Tempo (BPM)**: se detecta al extraer (y se guarda en `stemforge.json`) o al abrir una carpeta antigua.
-    Si sale al doble o a la mitad, se corrige con ÷2 / ×2.
-  - **Metrónomo**: una pista más del mezclador (silenciada al abrir) con un clic en cada pulso detectado,
-    así que sigue las variaciones de tempo de la canción.
-  - **Tono**: transpone de −5 a +5 semitonos sin cambiar la velocidad (ffmpeg). La batería y el metrónomo no
-    se transponen.
+  - **Metrónomo**: un archivo más de la carpeta (`Canción - Metrónomo.wav`, en el formato de las pistas) con un
+    clic en cada pulso detectado, así que sigue las variaciones de tempo de la canción. Se crea al extraer o, en
+    carpetas antiguas, al abrirlas. En el mezclador aparece silenciado al abrir y se puede descargar.
+  - **Tono**: transpone de −5 a +5 semitonos sin cambiar la velocidad ni el tempo (ffmpeg). La batería y el
+    metrónomo no se transponen. **Guardar versión en este tono** escribe todas las pistas en una subcarpeta
+    del proyecto (`Tono +2 semitonos/`, con su `stemforge.json`), que luego se puede abrir como cualquier otra.
 - **Qué extraer**: «Todo» o solo los stems que elijas (p. ej. solo Voz y Bajo, o solo Bombo y Caja). Solo se ejecutan los modelos necesarios: pedir solo la Voz en «4 Stems · Alta calidad» no ejecuta Demucs.
 - **Mezclar la selección**: además de cada pista por separado, un archivo extra con las pistas elegidas
   sumadas, p. ej. `Canción - Mezcla (Voz + Bajo).wav`. No suma dos veces el mismo sonido (si eliges

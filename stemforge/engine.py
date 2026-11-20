@@ -364,6 +364,18 @@ class Engine:
                 else:
                     warnings.append("La mezcla necesita al menos dos pistas distintas; no se generó.")
 
+            # Metrónomo: un clic en cada pulso detectado, del largo de la canción
+            if tempo["beats"]:
+                from .analysis import METRONOME_KEY, METRONOME_LABEL, write_metronome
+
+                dst = out_folder / f"{song} - {METRONOME_LABEL}.{req.output_format}"
+                try:
+                    final[METRONOME_KEY] = write_metronome(tempo["beats"], duration, dst, req.output_format,
+                                                           req.mp3_bitrate)
+                    labels[METRONOME_KEY] = METRONOME_LABEL
+                except Exception as exc:  # noqa: BLE001 — las pistas ya están
+                    warnings.append(f"No se pudo crear el metrónomo: {exc}")
+
             elapsed = time.time() - t0
             (out_folder / "stemforge.json").write_text(json.dumps({
                 "source": str(req.input_path), "mode": mode.key, "mode_name": mode.name,

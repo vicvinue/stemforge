@@ -282,10 +282,15 @@ def session_tempo(session_id: str):
 
 
 @app.get("/api/sessions/{session_id}/tracks/{key}", dependencies=[Depends(guard)])
-def session_track(session_id: str, key: str, semitones: int = 0):
+def session_track(session_id: str, key: str, semitones: int = 0, download: bool = False):
     if not -MAX_SEMITONES <= semitones <= MAX_SEMITONES:
         raise HTTPException(400, f"La transposición va de -{MAX_SEMITONES} a +{MAX_SEMITONES} semitonos")
     session = _session_or_404(session_id)
+    if download:                                   # el archivo original, para guardarlo
+        track = session.track(key)
+        if track is None or not track.path.is_file():
+            raise HTTPException(404, "Pista no encontrada")
+        return FileResponse(track.path, filename=track.path.name)
     try:
         path = session.audio_file(key, semitones)
     except FileNotFoundError as exc:
@@ -295,12 +300,34 @@ def session_track(session_id: str, key: str, semitones: int = 0):
     return FileResponse(path, headers={"Cache-Control": "no-store"})
 
 
-@app.post("/api/sessions/{session_id}/reveal", dependencies=[Depends(guard)])
-def reveal_session(session_id: str):
+class ExportIn(BaseModel):
+    semitones: int
+
+
+@app.post("/api/sessions/{session_id}/export", dependencies=[Depends(guard)])
+def export_session(session_id: str, body: ExportIn):
+    """Guarda las pistas transpuestas en una subcarpeta del proyecto («Tono +2 semitonos»)."""
     session = _session_or_404(session_id)
-    if not session.folder.exists():
+    try:
+        return session.export_transposed(body.semitones, settings.mp3_bitrate)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except (OSError, RuntimeError) as exc:
+        raise HTTPException(500, f"No se pudo guardar: {exc}") from exc
+
+
+@app.post("/api/sessions/{session_id}/reveal", dependencies=[Depends(guard)])
+def reveal_session(session_id: str, sub: str | None = None):
+    """Abre la carpeta de la sesión (o una subcarpeta suya, p. ej. la versión transpuesta)."""
+    session = _session_or_404(session_id)
+    folder = session.folder
+    if sub:
+        folder = (session.folder / sub).resolve()
+        if folder.parent != session.folder.resolve():
+            raise HTTPException(400, "Carpeta no válida")
+    if not folder.exists():
         raise HTTPException(404, "Carpeta no encontrada")
-    return {"ok": osutil.open_folder(session.folder)}
+    return {"ok": osutil.open_folder(folder)}
 
 
 @app.post("/api/open-output", dependencies=[Depends(guard)])

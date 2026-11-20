@@ -4,6 +4,10 @@ Una carpeta se abre con TODAS sus pistas de audio (sin subcarpetas). Si trae `st
 (lo escribe cada separación) se usa para reconocer cada pista y su tempo; si no, se deduce del
 nombre de archivo («Canción - Voz.wav») y el tempo se calcula al abrirla.
 
+Con el tempo conocido, si la carpeta no tiene metrónomo se crea («Canción - Metrónomo.wav»).
+Una versión transpuesta se guarda en una subcarpeta («Tono +2 semitonos») con su propio
+stemforge.json, así que también se puede abrir después.
+
 Solo hay un mezclador: al abrir una sesión nueva se descartan las anteriores y su caché de audio
 transpuesto.
 """
@@ -13,11 +17,13 @@ import json
 import shutil
 import threading
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import analysis, config
-from .presets import DRUMSEP_OUTPUTS, MIX_KEY, STEM_LABELS, STEM_ORDER, resolve_stem
+from .analysis import METRONOME_KEY, METRONOME_LABEL
+from .presets import DRUMSEP_OUTPUTS, MIX_KEY, STEM_LABELS, STEM_ORDER, _fold, resolve_stem
 
 MAX_TRACKS = 24
 META_FILE = "stemforge.json"
@@ -26,7 +32,7 @@ BROWSER_FORMATS = {".wav", ".flac", ".mp3", ".m4a", ".aac"}
 # Preferencia cuando la misma pista está en varios formatos (p. ej. «Voz.wav» y «Voz.mp3»)
 FORMAT_RANK = {".wav": 0, ".flac": 1, ".aiff": 2, ".aif": 2, ".m4a": 3, ".mp3": 4, ".ogg": 5, ".opus": 5}
 # Pistas sin tono definido: no se transponen (se ahorran artefactos)
-UNPITCHED = {"drums", *DRUMSEP_OUTPUTS}
+UNPITCHED = {"drums", *DRUMSEP_OUTPUTS, METRONOME_KEY}
 PITCH_DIR = config.WORK_DIR / "pitch"
 
 
@@ -37,9 +43,12 @@ class Track:
     path: Path
 
     @property
+    def base(self) -> str:
+        return self.key if self.key.startswith("x-") else self.key.split("-")[0]   # «drums-2» -> drums
+
+    @property
     def pitched(self) -> bool:
-        base = self.key if self.key.startswith("x-") else self.key.split("-")[0]   # «drums-2» -> drums
-        return base not in UNPITCHED
+        return self.base not in UNPITCHED
 
     def to_dict(self) -> dict:
         return {"key": self.key, "label": self.label, "file": self.path.name, "pitched": self.pitched}
@@ -56,7 +65,9 @@ class Session:
     beats: list[float] = field(default_factory=list)
     tempo_state: str = "done"                # pending | running | done | error
     skipped: list[str] = field(default_factory=list)
+    fmt: str = "wav"                         # formato de las pistas (para el metrónomo)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    _file_locks: dict = field(default_factory=dict, repr=False)
 
     def to_dict(self) -> dict:
         return {"id": self.id, "title": self.title, "folder": str(self.folder), "source": self.source,
@@ -64,10 +75,17 @@ class Session:
                 "tempo_state": self.tempo_state, "skipped": self.skipped}
 
     def tempo(self) -> dict:
-        return {"bpm": self.bpm, "beats": self.beats, "state": self.tempo_state}
+        metro = self.track(METRONOME_KEY)
+        return {"bpm": self.bpm, "state": self.tempo_state, "metronome": metro.to_dict() if metro else None}
 
     def track(self, key: str) -> Track | None:
         return next((t for t in self.tracks if t.key == key), None)
+
+    def song_name(self) -> str:
+        for t in self.tracks:
+            if " - " in t.path.stem:
+                return t.path.stem.rsplit(" - ", 1)[0]
+        return self.title
 
     # -- audio para el mezclador ------------------------------------------------------
     def audio_file(self, key: str, semitones: int = 0) -> Path:
@@ -80,22 +98,24 @@ class Session:
         if semitones == 0 and track.path.suffix.lower() in BROWSER_FORMATS:
             return track.path
         dst = PITCH_DIR / self.id / f"{_slug(key)}_{semitones:+d}.wav"
-        with self._lock:                     # dos pedidos iguales a la vez: se procesa una sola vez
+        with self._lock:
+            lock = self._file_locks.setdefault(dst, threading.Lock())
+        with lock:                           # dos pedidos iguales a la vez: se procesa una sola vez
             if not dst.is_file():
                 analysis.render(track.path, dst, semitones)
         return dst
 
-    # -- tempo ---------------------------------------------------------------------------
+    # -- tempo y metrónomo ----------------------------------------------------------------
     def tempo_sources(self) -> list[Path]:
-        """Las pistas que suenan por defecto en el mezclador (sin duplicar sonido)."""
-        keys = {t.key for t in self.tracks}
-        skip = {MIX_KEY}
-        if keys & {"drums", "bass", "guitar", "piano", "other", *DRUMSEP_OUTPUTS}:
+        """Las pistas que suenan por defecto en el mezclador (sin duplicar sonido ni el metrónomo)."""
+        bases = {t.base for t in self.tracks}
+        skip = {MIX_KEY, METRONOME_KEY}
+        if bases & {"drums", "bass", "guitar", "piano", "other", *DRUMSEP_OUTPUTS}:
             skip.add("instrumental")
-        if "drums" in keys:
+        if "drums" in bases:
             skip.update(DRUMSEP_OUTPUTS)
-        chosen = [t.path for t in self.tracks if t.key not in skip]
-        return chosen or [t.path for t in self.tracks]
+        chosen = [t.path for t in self.tracks if t.base not in skip]
+        return chosen or [t.path for t in self.tracks if t.base != METRONOME_KEY]
 
     def analyze_tempo_async(self) -> None:
         if self.tempo_state not in ("pending", "error"):
@@ -109,8 +129,96 @@ class Session:
         except Exception:  # noqa: BLE001 — el mezclador funciona igual sin tempo
             self.tempo_state = "error"
             return
-        self.bpm, self.beats, self.tempo_state = result["bpm"], result["beats"], "done"
-        _save_tempo(self.folder, result)
+        self.bpm, self.beats = result["bpm"], result["beats"]
+        _update_meta(self.folder, {"bpm": result["bpm"], "beats": result["beats"]})
+        self.ensure_metronome()
+        self.tempo_state = "done"
+
+    def duration(self) -> float:
+        import soundfile as sf
+
+        best = 0.0
+        for t in self.tracks:
+            if t.base == METRONOME_KEY:
+                continue
+            try:
+                info = sf.info(str(t.path))
+                best = max(best, info.frames / info.samplerate)
+            except Exception:  # formato que libsndfile no lee: se usa lo que haya
+                continue
+        return best or ((self.beats[-1] + 2.0) if self.beats else 0.0)
+
+    def ensure_metronome(self) -> Track | None:
+        """Crea «Canción - Metrónomo.<formato>» en la carpeta si hay pulsos y aún no existe.
+
+        Si la carpeta no admite escritura, el metrónomo queda en la caché (se oye igual, pero no se guarda).
+        """
+        existing = self.track(METRONOME_KEY)
+        if existing or not self.beats:
+            return existing
+        fmt = self.fmt if self.fmt in config.OUTPUT_FORMATS else "wav"
+        dst = self.folder / f"{self.song_name()} - {METRONOME_LABEL}.{fmt}"
+        try:
+            path = analysis.write_metronome(self.beats, self.duration(), dst, fmt)
+            _update_meta(self.folder, {"stems": {METRONOME_KEY: path.name}}, merge_key="stems")
+        except Exception:  # noqa: BLE001 — carpeta de solo lectura, disco lleno…
+            try:
+                path = analysis.write_metronome(self.beats, self.duration(),
+                                                PITCH_DIR / self.id / f"{METRONOME_LABEL}.wav", "wav")
+            except Exception:  # noqa: BLE001
+                return None
+        track = Track(METRONOME_KEY, METRONOME_LABEL, path)
+        self.tracks.append(track)
+        return track
+
+    # -- guardar una versión transpuesta ----------------------------------------------------
+    def export_transposed(self, semitones: int, mp3_bitrate: str = "320k") -> dict:
+        """Guarda todas las pistas transpuestas en una subcarpeta «Tono ±N semitonos».
+
+        La batería y el metrónomo se copian tal cual. Cada pista conserva su formato (WAV, FLAC o
+        MP3; otros formatos pasan a WAV). La subcarpeta lleva su stemforge.json (con el tempo).
+        """
+        if semitones == 0 or not -analysis.MAX_SEMITONES <= semitones <= analysis.MAX_SEMITONES:
+            raise ValueError(f"Elige un tono entre -{analysis.MAX_SEMITONES} y +{analysis.MAX_SEMITONES}")
+        tag = f"{semitones:+d}"
+        name = f"Tono {tag} semitono{'s' if abs(semitones) > 1 else ''}"
+        target = self.folder / name
+        n = 2
+        while target.exists():
+            target = self.folder / f"{name} ({n})"
+            n += 1
+        target.mkdir(parents=True)
+        song = self.song_name()
+
+        def one(track: Track) -> tuple[str, Path]:
+            ext = track.path.suffix.lower()
+            fmt = ext[1:] if ext[1:] in config.OUTPUT_FORMATS else "wav"
+            if track.pitched:
+                dst = target / f"{song} - {track.label} ({tag}).{fmt}"
+                src = self.audio_file(track.key, semitones)        # WAV 24 bits transpuesto (en caché)
+                if fmt == "wav":
+                    shutil.copyfile(src, dst)
+                else:
+                    from .engine import export
+
+                    export(src, dst, fmt, mp3_bitrate)
+            else:
+                dst = target / f"{song} - {track.label}{ext}"
+                shutil.copyfile(track.path, dst)
+            return track.key, dst
+
+        try:
+            with ThreadPoolExecutor(max_workers=4) as pool:
+                done = list(pool.map(one, self.tracks))
+        except Exception:
+            shutil.rmtree(target, ignore_errors=True)
+            raise
+        meta = _read_meta(self.folder)
+        meta.update({"stems": {k: p.name for k, p in done}, "bpm": self.bpm, "beats": self.beats,
+                     "transpose": semitones, "transposed_from": str(self.folder)})
+        meta.pop("selection_mix", None)
+        (target / META_FILE).write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")
+        return {"folder": str(target), "name": target.name, "files": [p.name for _, p in done]}
 
 
 # ------------------------------------------------------------------------- registro
@@ -147,9 +255,12 @@ def session_from_job(job) -> Session:
     if not tracks:
         raise FileNotFoundError("Las pistas de este trabajo ya no están en la carpeta de salida")
     folder = Path(job.output_folder) if job.output_folder else tracks[0].path.parent
-    session = Session(_new_id(), Path(job.filename).stem, folder, tracks, "job", bpm=job.bpm, beats=list(job.beats))
+    session = Session(_new_id(), Path(job.filename).stem, folder, tracks, "job", bpm=job.bpm,
+                      beats=list(job.beats), fmt=job.request.output_format)
     if job.bpm is None and not job.beats:
         session.tempo_state = "pending"
+    else:
+        session.ensure_metronome()
     return session
 
 
@@ -160,7 +271,8 @@ def session_from_folder(folder: Path) -> Session:
     meta = _read_meta(folder)
     known = {name: key for key, name in (meta.get("stems") or {}).items() if isinstance(name, str)}
     files = sorted((p for p in folder.iterdir()
-                    if p.is_file() and not p.name.startswith(".") and p.suffix.lower() in config.AUDIO_EXTENSIONS),
+                    if p.is_file() and not p.name.startswith(".") and ".part." not in p.name
+                    and p.suffix.lower() in config.AUDIO_EXTENSIONS),
                    key=lambda p: p.name.lower())
     if not files:
         raise ValueError("La carpeta no tiene archivos de audio")
@@ -186,9 +298,11 @@ def session_from_folder(folder: Path) -> Session:
     skipped = [t.path.name for t in tracks[MAX_TRACKS:]]
     tracks = tracks[:MAX_TRACKS]
 
-    session = Session(_new_id(), folder.name, folder, tracks, "folder", skipped=skipped)
+    fmt = meta.get("format") if meta.get("format") in config.OUTPUT_FORMATS else _majority_format(tracks)
+    session = Session(_new_id(), folder.name, folder, tracks, "folder", skipped=skipped, fmt=fmt)
     if "bpm" in meta:                            # ya analizada (bpm None = sin pulso claro)
         session.bpm, session.beats = meta.get("bpm"), list(meta.get("beats") or [])
+        session.ensure_metronome()
     else:
         session.tempo_state = "pending"
     return session
@@ -201,11 +315,15 @@ def identify(path: Path, known: dict[str, str] | None = None) -> tuple[str, str]
     if key is None:
         if tail.lower().startswith("mezcla"):
             key = MIX_KEY
+        elif _fold(tail) in ("metronomo", "metronome", "click"):
+            key = METRONOME_KEY
         else:
             guess = resolve_stem(tail)
             key = guess if guess in STEM_LABELS else None
     if key == MIX_KEY:
         return MIX_KEY, tail
+    if key == METRONOME_KEY:
+        return METRONOME_KEY, METRONOME_LABEL
     if key in STEM_LABELS:
         return key, STEM_LABELS[key]
     return "x-" + _slug(tail.lower()), tail
@@ -215,6 +333,8 @@ def _order(key: str) -> int:
     base = key.split("-")[0] if not key.startswith("x-") else key
     if base in STEM_ORDER:
         return STEM_ORDER.index(base)
+    if base == METRONOME_KEY:
+        return len(STEM_ORDER) + 2
     return len(STEM_ORDER) + (1 if base == MIX_KEY else 0)
 
 
@@ -222,6 +342,11 @@ def _better(new: Path, old: Path, known: dict[str, str]) -> bool:
     if (new.name in known) != (old.name in known):
         return new.name in known
     return FORMAT_RANK.get(new.suffix.lower(), 9) < FORMAT_RANK.get(old.suffix.lower(), 9)
+
+
+def _majority_format(tracks: list[Track]) -> str:
+    exts = [t.path.suffix.lower()[1:] for t in tracks if t.path.suffix.lower()[1:] in config.OUTPUT_FORMATS]
+    return max(set(exts), key=exts.count) if exts else "wav"
 
 
 def _read_meta(folder: Path) -> dict:
@@ -232,15 +357,19 @@ def _read_meta(folder: Path) -> dict:
         return {}
 
 
-def _save_tempo(folder: Path, tempo: dict) -> None:
-    """Guarda el tempo calculado en el stemforge.json de la carpeta (si lo tiene) para la próxima vez."""
+def _update_meta(folder: Path, values: dict, merge_key: str | None = None) -> None:
+    """Agrega datos al stemforge.json de la carpeta (solo si ya existe: no se crean archivos ajenos)."""
     meta_path = folder / META_FILE
     if not meta_path.is_file():
         return
     meta = _read_meta(folder)
     if not meta:
         return
-    meta["bpm"], meta["beats"] = tempo["bpm"], tempo["beats"]
+    for k, v in values.items():
+        if k == merge_key and isinstance(meta.get(k), dict):
+            meta[k].update(v)
+        else:
+            meta[k] = v
     try:
         tmp = meta_path.with_suffix(".tmp")
         tmp.write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")

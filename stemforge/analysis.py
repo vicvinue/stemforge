@@ -107,3 +107,46 @@ def render(src: Path, dst: Path, semitones: int = 0) -> Path:
         raise RuntimeError(f"ffmpeg falló: {proc.stderr.strip()[-400:]}")
     tmp.replace(dst)
     return dst
+
+
+# --------------------------------------------------------------------------- metrónomo
+METRONOME_KEY = "metronome"
+METRONOME_LABEL = "Metrónomo"
+_CLICK_FREQ = 1760.0
+_CLICK_SECONDS = 0.04
+_CLICK_DECAY = 0.007
+_CLICK_GAIN = 0.55
+
+
+def metronome_signal(beats: list[float], duration: float, sr: int = 44100) -> np.ndarray:
+    """Pista de clics (mono, float32) con un clic en cada pulso, del largo de la canción."""
+    length = max(1, int(round(duration * sr)))
+    out = np.zeros(length, dtype=np.float32)
+    n = int(round(_CLICK_SECONDS * sr))
+    t = np.arange(n) / sr
+    click = (_CLICK_GAIN * np.sin(2 * np.pi * _CLICK_FREQ * t) * np.exp(-t / _CLICK_DECAY)).astype(np.float32)
+    for b in beats:
+        i = int(round(float(b) * sr))
+        if 0 <= i < length:
+            end = min(length, i + n)
+            out[i:end] += click[: end - i]
+    return out
+
+
+def write_metronome(beats: list[float], duration: float, dst: Path, fmt: str = "wav",
+                    mp3_bitrate: str = "320k", sr: int = 44100) -> Path:
+    """Escribe el metrónomo en `dst` (wav 24 bits, flac o mp3, según `fmt`)."""
+    import soundfile as sf
+
+    from .engine import export
+
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    tmp = dst.with_name(dst.stem + ".metro.part.wav")
+    try:
+        sf.write(str(tmp), metronome_signal(beats, duration, sr), sr, subtype="FLOAT")
+        part = dst.with_name(dst.stem + ".part" + dst.suffix)
+        export(tmp, part, fmt, mp3_bitrate)
+        part.replace(dst)
+    finally:
+        tmp.unlink(missing_ok=True)
+    return dst
