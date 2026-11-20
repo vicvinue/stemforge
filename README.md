@@ -5,7 +5,7 @@ Incluye un mezclador con BPM, metrónomo y cambio de tono. Gratis, para
 **Mac con Apple Silicon** y **Windows 10/11**. Todo se procesa en tu computador: tus canciones no se suben a
 ningún sitio.
 
-**[⬇ Descargar la última versión](https://github.com/vicvinue/stemforge/releases/latest)** · versión 0.4.2
+**[⬇ Descargar la última versión](https://github.com/vicvinue/stemforge/releases/latest)** · versión 0.4.3
 
 ![StemForge: cola de trabajos con una canción separándose y otra lista](docs/screenshots/cola.png)
 
