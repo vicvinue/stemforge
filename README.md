@@ -1,18 +1,18 @@
 # StemForge
 
-**Versión 0.3.0** · por [vicvinue](https://github.com/vicvinue) · Licencia MIT
+**Versión 0.4.2** · por [vicvinue](https://github.com/vicvinue) · Licencia MIT
 
 Separador de stems para **macOS con Apple Silicon** (M1/M2/M3/M4) y **Windows 10/11 (x64)**.
 En el Mac usa la GPU (PyTorch **MPS / Metal**). En Windows hay dos instaladores: uno para **GPU NVIDIA (CUDA)**
 y otro, más liviano, que usa la CPU.
 
-![StemForge: cola de trabajos con una canción separándose y otra lista](docs/screenshots/cola.png)
+![StemForge: cola de trabajos con una canción separándose y otra lista, con su BPM y metrónomo](docs/screenshots/cola.png)
 
-<p align="center"><em>Cola de trabajos: elige el modo a la izquierda y sigue el progreso de cada canción.</em></p>
+<p align="center"><em>Cola de trabajos: elige el modo a la izquierda y sigue el progreso de cada canción. Arriba, «Abrir carpeta…» carga en el mezclador las pistas de una sesión anterior.</em></p>
 
-![StemForge: mezclador con las pistas separadas](docs/screenshots/mezclador.png)
+![StemForge: mezclador con las pistas separadas, el tempo, el metrónomo y el tono subido 2 semitonos](docs/screenshots/mezclador.png)
 
-<p align="center"><em>Mezclador integrado: escucha los stems sincronizados con mute, solo y volumen por pista.</em></p>
+<p align="center"><em>Mezclador integrado: stems sincronizados con mute, solo y volumen por pista, BPM detectado, metrónomo y cambio de tono (±5 semitonos) que se puede guardar como una versión nueva.</em></p>
 
 <sub>Capturas hechas con una pista de demostración sintética (batería, bajo y acordes generados + voz de texto a voz de macOS).</sub>
 
