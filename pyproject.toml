@@ -1,6 +1,6 @@
 [project]
 name = "stemforge"
-version = "0.4.2"
+version = "0.4.3"
 description = "Separador de stems para macOS (Apple Silicon) y Windows"
 requires-python = ">=3.10,<3.13"
 license = {text = "Propietaria, código visible (ver LICENSE)"}

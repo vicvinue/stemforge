@@ -73,6 +73,7 @@ exec "$RES_DIR/python/bin/python3" -I -B -m stemforge "$@"
 SH
 chmod +x "$APP/Contents/MacOS/StemForge" "$RES/stemforge"
 cp "$ROOT/stemforge/web/StemForge.icns" "$RES/StemForge.icns"
+cp "$ROOT/LICENSE" "$RES/LICENSE.txt"
 
 cat > "$APP/Contents/Info.plist" <<PL
 <?xml version="1.0" encoding="UTF-8"?>
@@ -106,6 +107,7 @@ if [[ "${1:-}" != "--no-dmg" ]]; then
   STAGE="$(mktemp -d)"
   cp -R "$APP" "$STAGE/"
   ln -s /Applications "$STAGE/Applications"
+  cp "$ROOT/LICENSE" "$STAGE/Licencia.txt"
   DMG="$DIST/StemForge-$VERSION.dmg"
   rm -f "$DMG"
   hdiutil create -volname "StemForge" -srcfolder "$STAGE" -ov -format UDZO "$DMG" >/dev/null
