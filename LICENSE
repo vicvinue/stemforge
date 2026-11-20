@@ -1,21 +1,82 @@
-MIT License
+StemForge · Licencia de uso con código visible
 
-Copyright (c) 2026 vicvinue
+Copyright (c) 2026 vicvinue (https://github.com/vicvinue). Todos los derechos reservados, salvo los
+permisos que se conceden expresamente en esta licencia.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Esta licencia se aplica a StemForge a partir de las versiones posteriores a la 0.4.2: la aplicación,
+sus instaladores, su código fuente, su interfaz, su nombre y su logo (en adelante, «StemForge»).
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+1. LO QUE PUEDES HACER
+
+   a) Descargar StemForge gratis desde sus canales oficiales —la página de releases del repositorio
+      https://github.com/vicvinue/stemforge y los torrents publicados en ella—, instalarlo en tus
+      equipos y usarlo para cualquier fin: personal, educativo o profesional.
+
+   b) Usar libremente el audio que obtengas con StemForge. El autor no reclama ningún derecho sobre él.
+      Eres responsable de contar con los derechos sobre las canciones que proceses.
+
+   c) Leer y estudiar el código fuente.
+
+   d) Descargar, compilar, ejecutar y modificar el código fuente únicamente para preparar y probar
+      contribuciones que propongas a este repositorio oficial (ver punto 3).
+
+   e) Compartir con otras personas el enlace a los canales oficiales de descarga.
+
+
+2. LO QUE NO PUEDES HACER sin permiso previo y por escrito del autor
+
+   a) Redistribuir StemForge, completo o en parte, gratis o pagando: subir sus instaladores, la
+      aplicación o su código a otros sitios web, tiendas, repositorios, servicios de descarga,
+      paquetes, recopilaciones o soportes físicos.
+
+   b) Vender, alquilar o sublicenciar StemForge, cobrar por darle acceso, ofrecerlo como servicio en
+      línea o incluirlo en otro producto o servicio.
+
+   c) Publicar o distribuir versiones modificadas o derivadas de StemForge, o compilaciones propias.
+
+   d) Quitar o alterar los avisos de autoría y de licencia, o presentar StemForge como obra propia.
+
+   e) Usar el nombre «StemForge» o su logo para identificar otro producto o servicio.
+
+   Las copias del repositorio que GitHub permite crear con su función «fork», según sus Términos de
+   Servicio, solo pueden usarse para lo indicado en el punto 1 d).
+
+
+3. CONTRIBUCIONES
+
+   Al enviar una contribución a este repositorio (pull request, parche, código, texto, traducción,
+   imagen o diseño) declaras que es obra tuya o que tienes derecho a aportarla, y concedes al autor
+   una licencia mundial, perpetua, irrevocable, gratuita y no exclusiva para usarla, modificarla,
+   distribuirla y sublicenciarla como parte de StemForge, bajo esta licencia o cualquier otra.
+   Conservas la autoría de tu contribución. Contribuir no da derecho a compensación.
+
+
+4. COMPONENTES DE TERCEROS
+
+   StemForge incluye o descarga software y modelos de terceros (por ejemplo Python, PyTorch,
+   python-audio-separator, Demucs, ffmpeg y los modelos de separación). Cada uno se rige por su propia
+   licencia, que esta licencia no modifica ni restringe.
+
+
+5. SIN GARANTÍA
+
+   STEMFORGE SE ENTREGA «TAL CUAL», SIN GARANTÍA DE NINGÚN TIPO, EXPRESA O IMPLÍCITA, INCLUIDAS LAS DE
+   COMERCIABILIDAD, IDONEIDAD PARA UN FIN DETERMINADO Y NO INFRACCIÓN. EN LA MEDIDA EN QUE LA LEY LO
+   PERMITA, EL AUTOR NO SERÁ RESPONSABLE DE NINGÚN DAÑO O RECLAMACIÓN DERIVADOS DEL USO DE STEMFORGE O
+   DE LA IMPOSIBILIDAD DE USARLO.
+
+
+6. TÉRMINO DE LOS PERMISOS
+
+   Si incumples esta licencia, los permisos que te concede terminan automáticamente.
+
+
+7. OTROS USOS
+
+   Para cualquier uso que esta licencia no permita, abre una consulta en
+   https://github.com/vicvinue/stemforge/issues.
+
+
+Las versiones 0.4.2 y anteriores se publicaron bajo la licencia MIT, que sigue aplicándose a esas
+versiones.

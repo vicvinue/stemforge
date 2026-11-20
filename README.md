@@ -1,7 +1,7 @@
 # StemForge
 
 **Separa cualquier canción en sus pistas —voz, batería, bajo, guitarra, piano…— y practica con ellas.**
-Incluye un mezclador con BPM, metrónomo y cambio de tono. Gratis y de código abierto, para
+Incluye un mezclador con BPM, metrónomo y cambio de tono. Gratis, para
 **Mac con Apple Silicon** y **Windows 10/11**. Todo se procesa en tu computador: tus canciones no se suben a
 ningún sitio.
 
@@ -167,14 +167,20 @@ En Mac, arrastra StemForge desde Aplicaciones a la papelera; los modelos y ajust
 *Configuración › Aplicaciones*; te preguntará si quieres borrar también los modelos. Tus canciones separadas
 nunca se borran.
 
+**¿Puedo compartir StemForge con otras personas?**
+Sí: comparte el enlace a la [página de descargas](https://github.com/vicvinue/stemforge/releases/latest).
+No subas los instaladores ni la app a otros sitios, y no la vendas: la [licencia](LICENSE) no lo permite.
+
 **Encontré un problema.**
 Cuéntalo en [Issues](https://github.com/vicvinue/stemforge/issues) y, si puedes, adjunta el registro de la
 app: `~/Library/Logs/StemForge.log` (Mac) o `%LOCALAPPDATA%\StemForge\logs\StemForge.log` (Windows).
 
 ## Créditos y licencias
 
-StemForge es obra de [vicvinue](https://github.com/vicvinue) y se publica bajo licencia [MIT](LICENSE).
-Usa estos proyectos y modelos de código abierto:
+StemForge es obra de [vicvinue](https://github.com/vicvinue). Puedes usarlo gratis, también con fines
+profesionales, pero no redistribuirlo, venderlo ni publicar versiones modificadas: ver la [licencia](LICENSE).
+
+Usa estos proyectos y modelos de código abierto, cada uno con su propia licencia:
 
 - [python-audio-separator](https://github.com/nomadkaraoke/python-audio-separator) (MIT) — motor de inferencia de modelos UVR.
 - [Demucs](https://github.com/facebookresearch/demucs) (MIT) — Meta AI.
@@ -185,4 +191,4 @@ Usa estos proyectos y modelos de código abierto:
 
 ---
 
-¿Quieres compilar StemForge o contribuir? Mira la [guía para desarrolladores](docs/DESARROLLO.md).
+¿Quieres reportar un problema o proponer mejoras? Mira [cómo contribuir](CONTRIBUTING.md).

@@ -91,7 +91,8 @@ Set-Content -Path (Join-Path $App "stemforge.cmd") -Encoding ASCII -Value @(
     "rem CLI: stemforge.cmd cancion.mp3 -m stems4",
     '"%~dp0python\python.exe" -I -B -X utf8 -m stemforge %*'
 )
-Copy-Item (Join-Path $Root "LICENSE") (Join-Path $App "LICENSE.txt")
+# Inno Setup muestra la licencia al instalar: UTF-8 con BOM para que se vean las tildes
+[IO.File]::WriteAllText((Join-Path $App "LICENSE.txt"), [IO.File]::ReadAllText((Join-Path $Root "LICENSE"), [Text.Encoding]::UTF8), (New-Object Text.UTF8Encoding $true))
 
 $Size = (Get-ChildItem $App -Recurse -File | Measure-Object Length -Sum).Sum / 1GB
 Write-Host ("==> Tamaño: {0:N2} GB" -f $Size)

@@ -94,7 +94,7 @@ def _macos_branding() -> None:
 
 AUTHOR_URL = "https://github.com/vicvinue"
 REPO_URL = "https://github.com/vicvinue/stemforge"
-COPYRIGHT = "© 2026 vicvinue · Licencia MIT"
+COPYRIGHT = "© 2026 vicvinue · Todos los derechos reservados"
 
 _about_target = None  # referencia fuerte: el menú no retiene su target
 

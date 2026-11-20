@@ -90,7 +90,7 @@ cat > "$APP/Contents/Info.plist" <<PL
   <key>LSArchitecturePriority</key><array><string>arm64</string></array>
   <key>LSRequiresNativeExecution</key><true/>
   <key>NSHighResolutionCapable</key><true/>
-  <key>NSHumanReadableCopyright</key><string>© 2026 vicvinue · Licencia MIT</string>
+  <key>NSHumanReadableCopyright</key><string>© 2026 vicvinue · Todos los derechos reservados</string>
   <key>NSAppleEventsUsageDescription</key><string>StemForge usa el selector de carpetas de macOS.</string>
 </dict></plist>
 PL

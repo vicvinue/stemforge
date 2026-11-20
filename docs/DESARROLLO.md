@@ -2,6 +2,10 @@
 
 Compilar, probar y publicar StemForge. La guía de uso está en el [README](../README.md).
 
+> Según la [licencia](../LICENSE), puedes compilar y modificar StemForge **solo para preparar y probar
+> contribuciones** a este repositorio ([cómo contribuir](../CONTRIBUTING.md)). No publiques ni compartas
+> compilaciones propias.
+
 ## Instalación para desarrollo
 
 macOS (Apple Silicon):
